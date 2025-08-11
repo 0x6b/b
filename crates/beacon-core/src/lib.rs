@@ -1,0 +1,15 @@
+//! Core library for the Beacon task planning application.
+//!
+//! This crate provides the core business logic for managing plans and steps,
+//! including database operations, data models, and error handling.
+
+pub mod db;
+pub mod error;
+pub mod models;
+pub mod planner;
+
+// Re-export commonly used types
+pub use db::Database;
+pub use error::{PlannerError, Result};
+pub use models::{CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus};
+pub use planner::{Planner, PlannerBuilder};

@@ -1,0 +1,47 @@
+[package]
+name = "beacon-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A simple task planning tool"
+
+[[bin]]
+name = "beacon"
+path = "src/main.rs"
+
+[dependencies]
+# Internal dependencies
+beacon-core = { path = "../beacon-core" }
+
+# CLI framework
+clap = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization (for MCP protocol)
+serde = { workspace = true }
+serde_json = { workspace = true }
+jiff = { workspace = true }
+
+# Logging
+log = { workspace = true }
+env_logger = { workspace = true }
+
+# MCP server
+rmcp = { workspace = true }
+tracing = "0.1"
+schemars = { workspace = true }
+
+# Terminal rendering
+termimad = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
