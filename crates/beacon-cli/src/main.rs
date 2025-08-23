@@ -260,18 +260,7 @@ async fn handle_plan_list(
                         .count() as u32;
                     let total_steps = steps.len() as u32;
 
-                    let plan_summary = beacon_core::PlanSummary {
-                        id: plan.id,
-                        title: plan.title,
-                        description: plan.description,
-                        status: plan.status,
-                        directory: plan.directory,
-                        created_at: plan.created_at,
-                        updated_at: plan.updated_at,
-                        total_steps,
-                        completed_steps,
-                        pending_steps: total_steps - completed_steps,
-                    };
+                    let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
 
                     result.push_str(&format!("{plan_summary}"));
                 }
@@ -432,18 +421,7 @@ async fn handle_plan_search(
                         .count() as u32;
                     let total_steps = steps.len() as u32;
 
-                    let plan_summary = beacon_core::PlanSummary {
-                        id: plan.id,
-                        title: plan.title,
-                        description: plan.description,
-                        status: plan.status,
-                        directory: plan.directory,
-                        created_at: plan.created_at,
-                        updated_at: plan.updated_at,
-                        total_steps,
-                        completed_steps,
-                        pending_steps: total_steps - completed_steps,
-                    };
+                    let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
 
                     result.push_str(&format!("{plan_summary}"));
                 }
@@ -611,12 +589,14 @@ async fn handle_step_update(
     planner
         .update_step(
             id,
-            title,
-            description,
-            acceptance_criteria,
-            references,
-            step_status,
-            result,
+            beacon_core::UpdateStepRequest {
+                title,
+                description,
+                acceptance_criteria,
+                references,
+                status: step_status,
+                result,
+            },
         )
         .await
         .with_context(|| format!("Failed to update step {id}"))?;
@@ -689,9 +669,13 @@ async fn handle_step_show(
 
             if !step.references.is_empty() {
                 markdown.push_str("\n## References\n");
-                for reference in &step.references {
-                    markdown.push_str(&format!("- {}\n", reference));
-                }
+                markdown.push_str(
+                    &step
+                        .references
+                        .iter()
+                        .map(|reference| format!("- {}\n", reference))
+                        .collect::<String>(),
+                );
             }
 
             markdown.push_str(&format!(

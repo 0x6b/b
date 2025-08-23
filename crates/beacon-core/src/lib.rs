@@ -11,5 +11,5 @@ pub mod planner;
 // Re-export commonly used types
 pub use db::Database;
 pub use error::{PlannerError, Result};
-pub use models::{CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus};
+pub use models::{CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus, UpdateStepRequest};
 pub use planner::{Planner, PlannerBuilder};

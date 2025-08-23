@@ -35,21 +35,21 @@ impl TerminalRenderer {
         if self.rich_enabled {
             // Process line by line to show hash symbols for headers
             for line in markdown.lines() {
-                if line.starts_with("#### ") {
+                if let Some(stripped) = line.strip_prefix("#### ") {
                     print!("\x1b[34m####\x1b[0m "); // Blue quadruple hash
-                    self.skin.print_inline(&line[5..]);
+                    self.skin.print_inline(stripped);
                     println!();
-                } else if line.starts_with("### ") {
+                } else if let Some(stripped) = line.strip_prefix("### ") {
                     print!("\x1b[34m###\x1b[0m "); // Blue triple hash
-                    self.skin.print_inline(&line[4..]);
+                    self.skin.print_inline(stripped);
                     println!();
-                } else if line.starts_with("## ") {
+                } else if let Some(stripped) = line.strip_prefix("## ") {
                     print!("\x1b[34m##\x1b[0m "); // Blue double hash
-                    self.skin.print_inline(&line[3..]);
+                    self.skin.print_inline(stripped);
                     println!();
-                } else if line.starts_with("# ") {
+                } else if let Some(stripped) = line.strip_prefix("# ") {
                     print!("\x1b[34m#\x1b[0m "); // Blue hash
-                    self.skin.print_inline(&line[2..]);
+                    self.skin.print_inline(stripped);
                     println!();
                 } else {
                     // For non-header lines, use regular rendering
