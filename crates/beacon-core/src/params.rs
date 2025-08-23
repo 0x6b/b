@@ -46,9 +46,9 @@
 //!     // ... clap-specific attributes
 //! }
 //!
-//! impl Into<CreatePlanParams> for CreatePlanArgs {
-//!     fn into(self) -> CreatePlanParams {
-//!         CreatePlanParams {
+//! impl Into<CreatePlan> for CreatePlanArgs {
+//!     fn into(self) -> CreatePlan {
+//!         CreatePlan {
 //!             title: self.title,
 //!             description: self.description,
 //!             directory: self.directory,
@@ -59,7 +59,7 @@
 //! // In MCP module  
 //! #[derive(Deserialize, JsonSchema)]
 //! #[serde(transparent)]
-//! struct CreatePlanRequest(beacon_core::params::CreatePlanParams);
+//! struct CreatePlanRequest(beacon_core::params::CreatePlan);
 //! ```
 //!
 //! ### Adding New Parameters
@@ -75,7 +75,7 @@
 //! ```ignore
 //! // 1. In beacon-core/src/params.rs
 //! #[derive(Debug, Clone)]
-//! pub struct NewOperationParams {
+//! pub struct NewOperation {
 //!     pub field1: String,
 //!     pub field2: Option<i32>,
 //! }
@@ -88,9 +88,9 @@
 //!     pub field2: Option<i32>,
 //! }
 //!
-//! impl Into<NewOperationParams> for NewOperationArgs {
-//!     fn into(self) -> NewOperationParams {
-//!         NewOperationParams {
+//! impl Into<NewOperation> for NewOperationArgs {
+//!     fn into(self) -> NewOperation {
+//!         NewOperation {
 //!             field1: self.field1,
 //!             field2: self.field2,
 //!         }
@@ -100,7 +100,7 @@
 //! // 3. In beacon-cli/src/mcp.rs
 //! #[derive(Deserialize, JsonSchema)]
 //! #[serde(transparent)]
-//! struct NewOperationRequest(beacon_core::params::NewOperationParams);
+//! struct NewOperationRequest(beacon_core::params::NewOperation);
 //! ```
 
 use serde::{Deserialize, Serialize};
@@ -112,7 +112,7 @@ use schemars::JsonSchema;
 /// Used for operations like show_plan, archive_plan, unarchive_plan, show_step, claim_step.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct IdParams {
+pub struct Id {
     /// The ID of the resource to operate on
     pub id: u64,
 }
@@ -123,7 +123,7 @@ pub struct IdParams {
 /// optional working directory association.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct CreatePlanParams {
+pub struct CreatePlan {
     /// Title of the plan (required)
     pub title: String,
     /// Optional detailed description of the plan
@@ -137,7 +137,7 @@ pub struct CreatePlanParams {
 /// Controls whether to show archived or active plans.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct ListPlansParams {
+pub struct ListPlans {
     /// Whether to show archived plans instead of active ones
     #[serde(default)]
     pub archived: bool,
@@ -148,7 +148,7 @@ pub struct ListPlansParams {
 /// Allows filtering plans by directory path and archived status.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct SearchPlansParams {
+pub struct SearchPlans {
     /// Directory path to search for plans
     pub directory: String,
     /// Whether to include archived plans in search results
@@ -161,7 +161,7 @@ pub struct SearchPlansParams {
 /// Contains the common fields used when creating or modifying steps.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct StepCreateParams {
+pub struct StepCreate {
     /// ID of the plan to add the step to
     pub plan_id: u64,
     /// Title of the step (required)
@@ -181,10 +181,10 @@ pub struct StepCreateParams {
 /// steps at specific locations within a plan's step order.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct InsertStepParams {
+pub struct InsertStep {
     /// Base step creation parameters
     #[serde(flatten)]
-    pub step: StepCreateParams,
+    pub step: StepCreate,
     /// Position to insert the step (0-indexed)
     pub position: u32,
 }
@@ -195,7 +195,7 @@ pub struct InsertStepParams {
 /// Both steps must belong to the same plan.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct SwapStepsParams {
+pub struct SwapSteps {
     /// ID of the first step to swap
     pub step1_id: u64,
     /// ID of the second step to swap
@@ -208,7 +208,7 @@ pub struct SwapStepsParams {
 /// the result field should be provided to document what was accomplished.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct UpdateStepParams {
+pub struct UpdateStep {
     /// Step ID to update (required)
     pub id: u64,
     /// New status for the step ('todo', 'inprogress', or 'done')
