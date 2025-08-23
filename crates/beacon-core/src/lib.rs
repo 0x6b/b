@@ -2,8 +2,49 @@
 //!
 //! This crate provides the core business logic for managing plans and steps,
 //! including database operations, data models, and error handling.
+//!
+//! # Display Architecture
+//!
+//! The crate implements a Display-based architecture for formatting output:
+//!
+//! - **Domain Models** ([`models`]): Implement [`std::fmt::Display`] for direct formatting
+//! - **Display Wrappers** ([`display`]): Provide contextual and specialized formatting
+//! - **Terminal Rendering**: Rich markdown output via the CLI's terminal renderer
+//!
+//! This separation allows the same data to be formatted differently depending on
+//! context (lists vs. individual items, creation results vs. updates, etc.) while
+//! maintaining consistency across all output.
+//!
+//! # Quick Start
+//!
+//! ```rust
+//! use beacon_core::{PlanList, models::{PlanSummary, PlanStatus}};
+//! use jiff::Timestamp;
+//!
+//! // Create a sample plan summary
+//! let plan = PlanSummary {
+//!     id: 1,
+//!     title: "My Project".to_string(),
+//!     description: Some("A test project".to_string()),
+//!     status: PlanStatus::Active,
+//!     directory: Some("/home/user/project".to_string()),
+//!     created_at: Timestamp::now(),
+//!     updated_at: Timestamp::now(),
+//!     total_steps: 5,
+//!     completed_steps: 2,
+//!     pending_steps: 3,
+//! };
+//! let plans = vec![plan];
+//!
+//! // Use display wrappers for formatted output
+//! let list = PlanList::with_title(&plans, "My Plans");
+//! let output = format!("{}", list);
+//! assert!(output.contains("# My Plans"));
+//! assert!(output.contains("My Project"));
+//! ```
 
 pub mod db;
+pub mod display;
 pub mod error;
 pub mod models;
 pub mod params;
@@ -11,10 +52,13 @@ pub mod planner;
 
 // Re-export commonly used types
 pub use db::Database;
+pub use display::{
+    CreateResult, DeleteResult, OperationStatus, PlanList, StepList, UpdateResult,
+};
 pub use error::{PlannerError, Result};
 pub use models::{
     CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
-    UpdateStepRequest,
+    UpdateStepRequest, format_datetime,
 };
 pub use params::{
     CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
