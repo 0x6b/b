@@ -6,10 +6,15 @@
 pub mod db;
 pub mod error;
 pub mod models;
+pub mod params;
 pub mod planner;
 
 // Re-export commonly used types
 pub use db::Database;
 pub use error::{PlannerError, Result};
 pub use models::{CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus, UpdateStepRequest};
+pub use params::{
+    CreatePlanParams, IdParams, InsertStepParams, ListPlansParams, SearchPlansParams,
+    StepCreateParams, SwapStepsParams, UpdateStepParams,
+};
 pub use planner::{Planner, PlannerBuilder};

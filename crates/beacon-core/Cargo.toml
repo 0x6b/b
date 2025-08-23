@@ -15,6 +15,11 @@ rusqlite = { workspace = true }
 jiff = { workspace = true }
 xdg = { workspace = true }
 tokio = { workspace = true }
+schemars = { workspace = true, optional = true }
+
+[features]
+default = []
+schema = ["schemars"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
