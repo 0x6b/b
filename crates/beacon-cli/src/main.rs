@@ -10,7 +10,13 @@ mod renderer;
 use std::str::FromStr;
 
 use anyhow::{Context, Result};
-use beacon_core::{format_plan_list, handle_add_step, handle_archive_plan, handle_create_plan, handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans, handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan, handle_update_step, CreatePlan, CreateResult, Id, InsertStep, ListPlans, OperationStatus, Planner, PlannerBuilder, SearchPlans, StepCreate, StepStatus, SwapSteps, UpdateResult, UpdateStep};
+use beacon_core::{
+    format_plan_list, handle_add_step, handle_archive_plan, handle_create_plan, handle_delete_plan,
+    handle_insert_step, handle_list_plans, handle_search_plans, handle_show_plan, handle_show_step,
+    handle_swap_steps, handle_unarchive_plan, handle_update_step, CreatePlan, CreateResult, Id,
+    InsertStep, ListPlans, OperationStatus, Planner, PlannerBuilder, SearchPlans, StepCreate,
+    StepStatus, SwapSteps, UpdateResult, UpdateStep,
+};
 use clap::Parser;
 use cli::{Cli, Commands, PlanCommands, StepCommands};
 use log::{debug, info};

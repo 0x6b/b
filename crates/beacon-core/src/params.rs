@@ -265,7 +265,7 @@ impl UpdateStep {
     /// params.status = Some("done".to_string());
     /// params.result = Some("Completed successfully".to_string());
     /// let (status, result) = params.validate()?;
-    /// 
+    ///
     /// // Invalid - missing result for done status
     /// let mut params = UpdateStep::default();
     /// params.id = 1;
@@ -277,19 +277,19 @@ impl UpdateStep {
     /// # Result::<()>::Ok(())
     /// ```
     pub fn validate(&self) -> crate::Result<(Option<crate::models::StepStatus>, Option<String>)> {
-        use std::str::FromStr;
         use crate::models::StepStatus;
-        
+        use std::str::FromStr;
+
         let step_status = if let Some(status_str) = &self.status {
-            Some(
-                StepStatus::from_str(status_str).map_err(|_| crate::PlannerError::InvalidInput {
+            Some(StepStatus::from_str(status_str).map_err(|_| {
+                crate::PlannerError::InvalidInput {
                     field: "status".to_string(),
                     reason: format!(
                         "Invalid status: {}. Must be 'todo', 'inprogress', or 'done'",
                         status_str
                     ),
-                })?,
-            )
+                }
+            })?)
         } else {
             None
         };
@@ -318,10 +318,10 @@ mod tests {
         let mut params = UpdateStep::default();
         params.id = 1;
         params.status = Some("todo".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
-        
+
         let (status, result_desc) = result.unwrap();
         assert_eq!(status, Some(StepStatus::Todo));
         assert_eq!(result_desc, None);
@@ -332,10 +332,10 @@ mod tests {
         let mut params = UpdateStep::default();
         params.id = 1;
         params.status = Some("inprogress".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
-        
+
         let (status, result_desc) = result.unwrap();
         assert_eq!(status, Some(StepStatus::InProgress));
         assert_eq!(result_desc, None);
@@ -347,10 +347,10 @@ mod tests {
         params.id = 1;
         params.status = Some("done".to_string());
         params.result = Some("Successfully completed".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
-        
+
         let (status, result_desc) = result.unwrap();
         assert_eq!(status, Some(StepStatus::Done));
         assert_eq!(result_desc, Some("Successfully completed".to_string()));
@@ -362,10 +362,10 @@ mod tests {
         params.id = 1;
         params.status = Some("done".to_string());
         params.result = None;
-        
+
         let result = params.validate();
         assert!(result.is_err());
-        
+
         match result.unwrap_err() {
             PlannerError::InvalidInput { field, reason } => {
                 assert_eq!(field, "result");
@@ -380,10 +380,10 @@ mod tests {
         let mut params = UpdateStep::default();
         params.id = 1;
         params.status = Some("invalid".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_err());
-        
+
         match result.unwrap_err() {
             PlannerError::InvalidInput { field, reason } => {
                 assert_eq!(field, "status");
@@ -399,10 +399,10 @@ mod tests {
         params.id = 1;
         params.status = None;
         params.result = Some("Some result".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
-        
+
         let (status, result_desc) = result.unwrap();
         assert_eq!(status, None);
         assert_eq!(result_desc, Some("Some result".to_string()));
@@ -413,10 +413,10 @@ mod tests {
         let mut params = UpdateStep::default();
         params.id = 1;
         params.status = Some("in_progress".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
-        
+
         let (status, result_desc) = result.unwrap();
         assert_eq!(status, Some(StepStatus::InProgress));
         assert_eq!(result_desc, None);
@@ -425,10 +425,10 @@ mod tests {
     #[test]
     fn test_update_step_validate_no_changes() {
         let params = UpdateStep::default();
-        
+
         let result = params.validate();
         assert!(result.is_ok());
-        
+
         let (status, result_desc) = result.unwrap();
         assert_eq!(status, None);
         assert_eq!(result_desc, None);
@@ -439,7 +439,7 @@ mod tests {
         let mut params = UpdateStep::default();
         params.id = 1;
         params.status = Some("todo".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
 
@@ -453,7 +453,7 @@ mod tests {
         let mut params = UpdateStep::default();
         params.id = 1;
         params.status = Some("inprogress".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
 
@@ -468,7 +468,7 @@ mod tests {
         params.id = 1;
         params.status = Some("done".to_string());
         params.result = Some("Successfully completed".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
 
@@ -483,7 +483,7 @@ mod tests {
         params.id = 1;
         params.status = Some("done".to_string());
         params.result = None;
-        
+
         let result = params.validate();
         assert!(result.is_err());
 
@@ -501,7 +501,7 @@ mod tests {
         let mut params = UpdateStep::default();
         params.id = 1;
         params.status = Some("invalid".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_err());
 
@@ -520,7 +520,7 @@ mod tests {
         params.id = 1;
         params.status = None;
         params.result = Some("Some result".to_string());
-        
+
         let result = params.validate();
         assert!(result.is_ok());
 

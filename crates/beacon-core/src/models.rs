@@ -83,7 +83,7 @@
 
 use std::{fmt, str::FromStr};
 
-use jiff::{Timestamp, tz::TimeZone};
+use jiff::{tz::TimeZone, Timestamp};
 use serde::{Deserialize, Serialize};
 
 /// Type-safe enumeration of plan statuses.
@@ -312,12 +312,12 @@ impl PlanFilter {
     ///
     /// ```rust
     /// use beacon_core::models::PlanFilter;
-    /// 
+    ///
     /// // Filter for active plans in a specific directory
     /// let filter = PlanFilter::for_directory("/path/to/project".to_string(), false);
     /// assert_eq!(filter.directory, Some("/path/to/project".to_string()));
     /// assert!(!filter.include_archived);
-    /// 
+    ///
     /// // Filter for archived plans in a specific directory  
     /// let filter = PlanFilter::for_directory("/path/to/archived".to_string(), true);
     /// assert_eq!(filter.directory, Some("/path/to/archived".to_string()));
@@ -448,8 +448,8 @@ impl TryFrom<crate::params::UpdateStep> for UpdateStepRequest {
 
     /// Convert an UpdateStep parameter into a validated UpdateStepRequest.
     ///
-    /// This trait implementation replaces the `create_update_request` function 
-    /// with an idiomatic Rust conversion. It performs validation of the status 
+    /// This trait implementation replaces the `create_update_request` function
+    /// with an idiomatic Rust conversion. It performs validation of the status
     /// field and ensures result requirements are met for 'done' status.
     ///
     /// # Arguments
@@ -477,7 +477,7 @@ impl TryFrom<crate::params::UpdateStep> for UpdateStepRequest {
     /// params.status = Some("done".to_string());
     /// params.result = Some("Completed successfully".to_string());
     /// params.title = Some("New title".to_string());
-    /// 
+    ///
     /// let request: UpdateStepRequest = params.try_into()?;
     /// assert_eq!(request.title, Some("New title".to_string()));
     /// # use beacon_core::Result;
@@ -486,7 +486,7 @@ impl TryFrom<crate::params::UpdateStep> for UpdateStepRequest {
     fn try_from(params: crate::params::UpdateStep) -> Result<Self, Self::Error> {
         // Use the existing validation method from UpdateStep
         let (validated_status, validated_result) = params.validate()?;
-        
+
         Ok(Self {
             title: params.title,
             description: params.description,
@@ -676,30 +676,31 @@ impl fmt::Display for PlanSummary {
 /// // Format depends on system timezone, e.g., "2022-01-01 09:00:00 JST"
 /// ```
 pub fn format_datetime(dt: &Timestamp) -> impl fmt::Display + '_ {
-    dt.to_zoned(TimeZone::system()).strftime("%Y-%m-%d %H:%M:%S %Z")
+    dt.to_zoned(TimeZone::system())
+        .strftime("%Y-%m-%d %H:%M:%S %Z")
 }
 
 impl From<&crate::params::ListPlans> for PlanFilter {
     /// Convert ListPlans parameters to a PlanFilter for plan queries.
-    /// 
+    ///
     /// This implementation replaces the `create_plan_filter` function with an
     /// idiomatic Rust trait conversion. The conversion creates appropriate
     /// filters based on the archived flag:
-    /// 
+    ///
     /// - `archived: false` → Filter for active plans only
     /// - `archived: true` → Filter for archived plans only
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust
     /// use beacon_core::{params::ListPlans, models::PlanFilter};
-    /// 
+    ///
     /// // Filter for active plans
     /// let params = ListPlans { archived: false };
     /// let filter: PlanFilter = (&params).into();
     /// assert_eq!(filter.status, Some(beacon_core::models::PlanStatus::Active));
     /// assert!(!filter.include_archived);
-    /// 
+    ///
     /// // Filter for archived plans
     /// let params = ListPlans { archived: true };
     /// let filter: PlanFilter = (&params).into();
@@ -999,7 +1000,7 @@ mod tests {
     #[test]
     fn test_plan_filter_from_list_plans_active() {
         use crate::params::ListPlans;
-        
+
         let params = ListPlans { archived: false };
         let filter: PlanFilter = (&params).into();
 
@@ -1015,7 +1016,7 @@ mod tests {
     #[test]
     fn test_plan_filter_from_list_plans_archived() {
         use crate::params::ListPlans;
-        
+
         let params = ListPlans { archived: true };
         let filter: PlanFilter = (&params).into();
 
@@ -1027,7 +1028,6 @@ mod tests {
         assert_eq!(filter.created_before, None);
         assert_eq!(filter.completion_status, None);
     }
-
 
     #[test]
     fn test_plan_filter_for_directory_active() {
@@ -1059,7 +1059,6 @@ mod tests {
         assert_eq!(filter.completion_status, None);
     }
 
-
     #[test]
     fn test_update_step_request_new_constructor() {
         let request = UpdateStepRequest::new(
@@ -1073,8 +1072,14 @@ mod tests {
 
         assert_eq!(request.title, Some("Test Title".to_string()));
         assert_eq!(request.description, Some("Test Description".to_string()));
-        assert_eq!(request.acceptance_criteria, Some("Test Acceptance".to_string()));
-        assert_eq!(request.references, Some(vec!["ref1.txt".to_string(), "ref2.txt".to_string()]));
+        assert_eq!(
+            request.acceptance_criteria,
+            Some("Test Acceptance".to_string())
+        );
+        assert_eq!(
+            request.references,
+            Some(vec!["ref1.txt".to_string(), "ref2.txt".to_string()])
+        );
         assert_eq!(request.status, Some(StepStatus::Done));
         assert_eq!(request.result, Some("Test Result".to_string()));
     }
@@ -1127,8 +1132,14 @@ mod tests {
 
         let request = result.unwrap();
         assert_eq!(request.status, Some(StepStatus::Done));
-        assert_eq!(request.result, Some("Task completed successfully".to_string()));
-        assert_eq!(request.acceptance_criteria, Some("Must pass all tests".to_string()));
+        assert_eq!(
+            request.result,
+            Some("Task completed successfully".to_string())
+        );
+        assert_eq!(
+            request.acceptance_criteria,
+            Some("Must pass all tests".to_string())
+        );
         assert_eq!(request.references, Some(vec!["file.txt".to_string()]));
     }
 
@@ -1190,7 +1201,6 @@ mod tests {
         assert_eq!(request.status, None);
         assert_eq!(request.result, None);
     }
-
 
     #[test]
     fn test_create_update_request_all_fields() {
