@@ -46,6 +46,8 @@ fn test_get_plan() {
 
     assert_eq!(retrieved_plan.id, created_plan.id);
     assert_eq!(retrieved_plan.title, "Get Title");
+    // Should have no steps initially (empty, but not a null/uninitialized vector)
+    assert!(retrieved_plan.steps.is_empty());
 }
 
 #[test]
@@ -713,4 +715,178 @@ fn test_update_step_result_ignored_for_non_done_status() {
         .expect("Step should exist");
     assert_eq!(updated_step.status, StepStatus::Todo);
     assert_eq!(updated_step.result, None); // Result should be cleared
+}
+
+#[test]
+fn test_delete_plan() {
+    let (_temp_file, mut db) = create_test_db();
+
+    // Create a plan with some steps
+    let plan = db
+        .create_plan("Test Plan", Some("A plan to be deleted"), None)
+        .expect("Failed to create plan");
+
+    let step1 = db
+        .add_step(plan.id, "Step 1", None, None, Vec::new())
+        .expect("Failed to add step 1");
+    let step2 = db
+        .add_step(plan.id, "Step 2", None, None, Vec::new())
+        .expect("Failed to add step 2");
+
+    // Verify plan and steps exist
+    assert!(db.get_plan(plan.id).expect("Failed to get plan").is_some());
+    assert!(db.get_step(step1.id).expect("Failed to get step").is_some());
+    assert!(db.get_step(step2.id).expect("Failed to get step").is_some());
+
+    // Delete the plan
+    db.delete_plan(plan.id).expect("Failed to delete plan");
+
+    // Verify plan and steps are deleted
+    assert!(db.get_plan(plan.id).expect("Failed to get plan").is_none());
+    assert!(db.get_step(step1.id).expect("Failed to get step").is_none());
+    assert!(db.get_step(step2.id).expect("Failed to get step").is_none());
+}
+
+#[test]
+fn test_delete_nonexistent_plan() {
+    let (_temp_file, mut db) = create_test_db();
+
+    // Try to delete a plan that doesn't exist
+    let result = db.delete_plan(999);
+    assert!(result.is_err());
+
+    match result.unwrap_err() {
+        PlannerError::PlanNotFound { id } => {
+            assert_eq!(id, 999);
+        }
+        _ => panic!("Expected PlanNotFound error"),
+    }
+}
+
+#[test]
+fn test_get_plan_with_eager_loaded_steps() {
+    let (_temp_file, mut db) = create_test_db();
+
+    // Create a plan
+    let plan = db
+        .create_plan("Test Plan with Steps", None, None)
+        .expect("Failed to create plan");
+
+    // Add some steps
+    let step1 = db
+        .add_step(plan.id, "First Step", None, None, Vec::new())
+        .expect("Failed to add first step");
+    let step2 = db
+        .add_step(plan.id, "Second Step", None, None, Vec::new())
+        .expect("Failed to add second step");
+
+    // Get the plan - should have steps eagerly loaded
+    let retrieved_plan = db
+        .get_plan(plan.id)
+        .expect("Failed to get plan")
+        .expect("Plan should exist");
+
+    // Verify steps are loaded
+    assert_eq!(retrieved_plan.steps.len(), 2);
+    assert_eq!(retrieved_plan.steps[0].id, step1.id);
+    assert_eq!(retrieved_plan.steps[0].title, "First Step");
+    assert_eq!(retrieved_plan.steps[1].id, step2.id);
+    assert_eq!(retrieved_plan.steps[1].title, "Second Step");
+}
+
+#[test]
+fn test_list_plans_with_eager_loaded_steps() {
+    let (_temp_file, mut db) = create_test_db();
+
+    // Create two plans
+    let plan1 = db
+        .create_plan("Plan One", None, None)
+        .expect("Failed to create plan 1");
+    let plan2 = db
+        .create_plan("Plan Two", None, None)
+        .expect("Failed to create plan 2");
+
+    // Add steps to first plan
+    db.add_step(plan1.id, "Plan 1 Step 1", None, None, Vec::new())
+        .expect("Failed to add step to plan 1");
+    db.add_step(plan1.id, "Plan 1 Step 2", None, None, Vec::new())
+        .expect("Failed to add second step to plan 1");
+
+    // Add one step to second plan
+    db.add_step(plan2.id, "Plan 2 Step 1", None, None, Vec::new())
+        .expect("Failed to add step to plan 2");
+
+    // List plans - should have steps eagerly loaded
+    let plans = db.list_plans(None).expect("Failed to list plans");
+
+    assert_eq!(plans.len(), 2);
+
+    // Find plans in the results (order may vary)
+    let retrieved_plan1 = plans
+        .iter()
+        .find(|p| p.id == plan1.id)
+        .expect("Plan 1 should be found");
+    let retrieved_plan2 = plans
+        .iter()
+        .find(|p| p.id == plan2.id)
+        .expect("Plan 2 should be found");
+
+    // Verify steps are loaded for plan 1
+    assert_eq!(retrieved_plan1.steps.len(), 2);
+    assert_eq!(retrieved_plan1.steps[0].title, "Plan 1 Step 1");
+    assert_eq!(retrieved_plan1.steps[1].title, "Plan 1 Step 2");
+
+    // Verify steps are loaded for plan 2
+    assert_eq!(retrieved_plan2.steps.len(), 1);
+    assert_eq!(retrieved_plan2.steps[0].title, "Plan 2 Step 1");
+}
+
+#[test]
+fn test_performance_eager_loading() {
+    let (_temp_file, mut db) = create_test_db();
+
+    // Create multiple plans with several steps each
+    let mut plan_ids = Vec::new();
+    for i in 1..=10 {
+        let plan = db
+            .create_plan(&format!("Performance Plan {}", i), None, None)
+            .expect("Failed to create plan");
+        plan_ids.push(plan.id);
+
+        // Add 5 steps to each plan
+        for j in 1..=5 {
+            db.add_step(
+                plan.id,
+                &format!("Step {} for Plan {}", j, i),
+                None,
+                None,
+                Vec::new(),
+            )
+            .expect("Failed to add step");
+        }
+    }
+
+    let start = std::time::Instant::now();
+    let plans = db.list_plans(None).expect("Failed to list plans");
+    let duration = start.elapsed();
+
+    // Verify all plans have their steps loaded
+    assert_eq!(plans.len(), 10);
+    for plan in &plans {
+        assert_eq!(plan.steps.len(), 5);
+    }
+
+    // For personal use, this should be very fast even with eager loading
+    // Using 100ms as a reasonable threshold for 10 plans with 5 steps each
+    assert!(
+        duration.as_millis() < 100,
+        "Eager loading took too long: {:?}",
+        duration
+    );
+    println!(
+        "Eager loading performance: loaded {} plans with {} total steps in {:?}",
+        plans.len(),
+        plans.iter().map(|p| p.steps.len()).sum::<usize>(),
+        duration
+    );
 }

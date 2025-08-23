@@ -205,7 +205,7 @@ impl Database {
             )
             .map_err(|e| PlannerError::database_error("Failed to prepare query", e))?;
 
-        let plan = stmt
+        let mut plan = stmt
             .query_row(params![id as i64], |row| {
                 let status_str: String = row.get(3)?;
                 let status = status_str.parse::<PlanStatus>().map_err(|_| {
@@ -244,6 +244,11 @@ impl Database {
             })
             .optional()
             .map_err(|e| PlannerError::database_error("Failed to query plan", e))?;
+
+        // Eagerly load steps if plan exists
+        if let Some(ref mut plan) = plan {
+            plan.steps = self.get_steps(plan.id)?;
+        }
 
         Ok(plan)
     }
@@ -357,15 +362,26 @@ impl Database {
         // Apply completion filter if specified
         if let Some(f) = filter {
             if let Some(ref completion) = f.completion_status {
-                return Ok(self.filter_by_completion_with_counts(plans_with_counts, completion));
+                let mut filtered_plans =
+                    self.filter_by_completion_with_counts(plans_with_counts, completion);
+                // Eagerly load steps for each filtered plan
+                for plan in &mut filtered_plans {
+                    plan.steps = self.get_steps(plan.id)?;
+                }
+                return Ok(filtered_plans);
             }
         }
 
-        // If no completion filter, just return the plans
-        let plans = plans_with_counts
+        // If no completion filter, populate steps for each plan and return
+        let mut plans: Vec<Plan> = plans_with_counts
             .into_iter()
             .map(|(plan, _, _)| plan)
             .collect();
+
+        // Eagerly load steps for each plan
+        for plan in &mut plans {
+            plan.steps = self.get_steps(plan.id)?;
+        }
 
         Ok(plans)
     }
@@ -1116,6 +1132,43 @@ impl Database {
             params![&now_str, plan_id],
         )
         .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
+
+        tx.commit()
+            .map_err(|e| PlannerError::database_error("Failed to commit transaction", e))?;
+
+        Ok(())
+    }
+
+    /// Permanently deletes a plan and all its associated steps from the
+    /// database. This operation cannot be undone.
+    pub fn delete_plan(&mut self, id: u64) -> Result<()> {
+        let tx = self
+            .connection
+            .transaction()
+            .map_err(|e| PlannerError::database_error("Failed to begin transaction", e))?;
+
+        // Check if plan exists
+        let exists: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM plans WHERE id = ?1)",
+                params![id as i64],
+                |row| row.get(0),
+            )
+            .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
+
+        if !exists {
+            return Err(PlannerError::PlanNotFound { id });
+        }
+
+        // Delete all steps associated with this plan first
+        // (Foreign key constraints should handle this automatically, but we'll be
+        // explicit)
+        tx.execute("DELETE FROM steps WHERE plan_id = ?1", params![id as i64])
+            .map_err(|e| PlannerError::database_error("Failed to delete plan steps", e))?;
+
+        // Delete the plan itself
+        tx.execute("DELETE FROM plans WHERE id = ?1", params![id as i64])
+            .map_err(|e| PlannerError::database_error("Failed to delete plan", e))?;
 
         tx.commit()
             .map_err(|e| PlannerError::database_error("Failed to commit transaction", e))?;
