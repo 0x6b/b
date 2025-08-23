@@ -83,7 +83,7 @@
 
 use std::{fmt, str::FromStr};
 
-use jiff::Timestamp;
+use jiff::{Timestamp, tz::TimeZone};
 use serde::{Deserialize, Serialize};
 
 /// Type-safe enumeration of plan statuses.
@@ -291,8 +291,54 @@ pub struct PlanFilter {
     pub include_archived: bool,
 }
 
+impl PlanFilter {
+    /// Create a directory-specific plan filter for search operations.
+    ///
+    /// This associated function creates a plan filter that combines directory filtering
+    /// with archived status filtering for search operations. It provides the same
+    /// functionality as the `create_directory_filter` function but as an idiomatic
+    /// associated constructor.
+    ///
+    /// # Arguments
+    ///
+    /// * `directory` - Directory path to filter by
+    /// * `archived` - Whether to include archived plans
+    ///
+    /// # Returns
+    ///
+    /// A PlanFilter configured for directory and status filtering
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use beacon_core::models::PlanFilter;
+    /// 
+    /// // Filter for active plans in a specific directory
+    /// let filter = PlanFilter::for_directory("/path/to/project".to_string(), false);
+    /// assert_eq!(filter.directory, Some("/path/to/project".to_string()));
+    /// assert!(!filter.include_archived);
+    /// 
+    /// // Filter for archived plans in a specific directory  
+    /// let filter = PlanFilter::for_directory("/path/to/archived".to_string(), true);
+    /// assert_eq!(filter.directory, Some("/path/to/archived".to_string()));
+    /// assert!(filter.include_archived);
+    /// ```
+    pub fn for_directory(directory: String, archived: bool) -> Self {
+        Self {
+            status: Some(if archived {
+                PlanStatus::Archived
+            } else {
+                PlanStatus::Active
+            }),
+            directory: Some(directory),
+            include_archived: archived,
+            ..Default::default()
+        }
+    }
+}
+
 /// Completion status filter options.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompletionFilter {
     /// Plans with all steps completed
     Complete,
@@ -338,6 +384,118 @@ pub struct UpdateStepRequest {
     pub references: Option<Vec<String>>,
     pub status: Option<StepStatus>,
     pub result: Option<String>,
+}
+
+impl UpdateStepRequest {
+    /// Create an UpdateStepRequest from individual validated parameters.
+    ///
+    /// This constructor method creates an UpdateStepRequest from pre-validated
+    /// components, typically used when validation has already been performed
+    /// elsewhere in the system.
+    ///
+    /// # Arguments
+    ///
+    /// * `title` - Optional new title for the step
+    /// * `description` - Optional new description for the step
+    /// * `acceptance_criteria` - Optional new acceptance criteria for the step
+    /// * `references` - Optional new references list for the step
+    /// * `status` - Optional validated StepStatus (already parsed and validated)
+    /// * `result` - Optional result description for the step
+    ///
+    /// # Returns
+    ///
+    /// A new UpdateStepRequest with all provided parameters set
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use beacon_core::models::{UpdateStepRequest, StepStatus};
+    ///
+    /// let request = UpdateStepRequest::new(
+    ///     Some("Updated title".to_string()),
+    ///     None,
+    ///     None,
+    ///     None,
+    ///     Some(StepStatus::Done),
+    ///     Some("Task completed successfully".to_string()),
+    /// );
+    ///
+    /// assert_eq!(request.title, Some("Updated title".to_string()));
+    /// assert_eq!(request.status, Some(StepStatus::Done));
+    /// assert_eq!(request.result, Some("Task completed successfully".to_string()));
+    /// ```
+    pub fn new(
+        title: Option<String>,
+        description: Option<String>,
+        acceptance_criteria: Option<String>,
+        references: Option<Vec<String>>,
+        status: Option<StepStatus>,
+        result: Option<String>,
+    ) -> Self {
+        Self {
+            title,
+            description,
+            acceptance_criteria,
+            references,
+            status,
+            result,
+        }
+    }
+}
+
+impl TryFrom<crate::params::UpdateStep> for UpdateStepRequest {
+    type Error = crate::PlannerError;
+
+    /// Convert an UpdateStep parameter into a validated UpdateStepRequest.
+    ///
+    /// This trait implementation replaces the `create_update_request` function 
+    /// with an idiomatic Rust conversion. It performs validation of the status 
+    /// field and ensures result requirements are met for 'done' status.
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - UpdateStep parameters from the params module
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the validated UpdateStepRequest, or a PlannerError
+    /// if validation fails
+    ///
+    /// # Errors
+    ///
+    /// * `PlannerError::InvalidInput` - When status string is invalid
+    /// * `PlannerError::InvalidInput` - When result is missing for 'done' status
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use beacon_core::{params::UpdateStep, models::UpdateStepRequest};
+    ///
+    /// // Valid conversion with status change
+    /// let mut params = UpdateStep::default();
+    /// params.id = 1;
+    /// params.status = Some("done".to_string());
+    /// params.result = Some("Completed successfully".to_string());
+    /// params.title = Some("New title".to_string());
+    /// 
+    /// let request: UpdateStepRequest = params.try_into()?;
+    /// assert_eq!(request.title, Some("New title".to_string()));
+    /// # use beacon_core::Result;
+    /// # Result::<()>::Ok(())
+    /// ```
+    fn try_from(params: crate::params::UpdateStep) -> Result<Self, Self::Error> {
+        // Use the existing validation method from UpdateStep
+        let (validated_status, validated_result) = params.validate()?;
+        
+        Ok(Self {
+            title: params.title,
+            description: params.description,
+            acceptance_criteria: params.acceptance_criteria,
+            references: params.references,
+            status: validated_status,
+            result: validated_result,
+        })
+    }
 }
 
 impl PlanSummary {
@@ -498,14 +656,14 @@ impl fmt::Display for PlanSummary {
     }
 }
 
-/// Format datetime for consistent display across all models.
+/// Format datetime for consistent display across all models using system timezone.
 ///
 /// This function provides a standardized timestamp format used throughout
-/// the display system. The format is human-readable and includes timezone
-/// information for clarity.
+/// the display system. The format is human-readable and includes the system
+/// timezone information for clarity.
 ///
 /// # Format
-/// `YYYY-MM-DD HH:MM:SS UTC` (e.g., "2022-01-01 15:30:45 UTC")
+/// `YYYY-MM-DD HH:MM:SS TZ` (e.g., "2022-01-01 15:30:45 JST")
 ///
 /// # Examples
 ///
@@ -515,10 +673,54 @@ impl fmt::Display for PlanSummary {
 ///
 /// let timestamp = Timestamp::from_second(1640995200).unwrap();
 /// let formatted = format!("{}", format_datetime(&timestamp));
-/// assert_eq!(formatted, "2022-01-01 00:00:00 UTC");
+/// // Format depends on system timezone, e.g., "2022-01-01 09:00:00 JST"
 /// ```
 pub fn format_datetime(dt: &Timestamp) -> impl fmt::Display + '_ {
-    dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    dt.to_zoned(TimeZone::system()).strftime("%Y-%m-%d %H:%M:%S %Z")
+}
+
+impl From<&crate::params::ListPlans> for PlanFilter {
+    /// Convert ListPlans parameters to a PlanFilter for plan queries.
+    /// 
+    /// This implementation replaces the `create_plan_filter` function with an
+    /// idiomatic Rust trait conversion. The conversion creates appropriate
+    /// filters based on the archived flag:
+    /// 
+    /// - `archived: false` → Filter for active plans only
+    /// - `archived: true` → Filter for archived plans only
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use beacon_core::{params::ListPlans, models::PlanFilter};
+    /// 
+    /// // Filter for active plans
+    /// let params = ListPlans { archived: false };
+    /// let filter: PlanFilter = (&params).into();
+    /// assert_eq!(filter.status, Some(beacon_core::models::PlanStatus::Active));
+    /// assert!(!filter.include_archived);
+    /// 
+    /// // Filter for archived plans
+    /// let params = ListPlans { archived: true };
+    /// let filter: PlanFilter = (&params).into();
+    /// assert_eq!(filter.status, Some(beacon_core::models::PlanStatus::Archived));
+    /// assert!(filter.include_archived);
+    /// ```
+    fn from(params: &crate::params::ListPlans) -> Self {
+        if params.archived {
+            Self {
+                status: Some(PlanStatus::Archived),
+                include_archived: true,
+                ..Default::default()
+            }
+        } else {
+            Self {
+                status: Some(PlanStatus::Active),
+                include_archived: false,
+                ..Default::default()
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -792,5 +994,258 @@ mod tests {
         assert_eq!(summary.total_steps, 3);
         assert_eq!(summary.completed_steps, 3);
         assert_eq!(summary.pending_steps, 0);
+    }
+
+    #[test]
+    fn test_plan_filter_from_list_plans_active() {
+        use crate::params::ListPlans;
+        
+        let params = ListPlans { archived: false };
+        let filter: PlanFilter = (&params).into();
+
+        assert_eq!(filter.status, Some(PlanStatus::Active));
+        assert!(!filter.include_archived);
+        assert_eq!(filter.title_contains, None);
+        assert_eq!(filter.directory, None);
+        assert_eq!(filter.created_after, None);
+        assert_eq!(filter.created_before, None);
+        assert_eq!(filter.completion_status, None);
+    }
+
+    #[test]
+    fn test_plan_filter_from_list_plans_archived() {
+        use crate::params::ListPlans;
+        
+        let params = ListPlans { archived: true };
+        let filter: PlanFilter = (&params).into();
+
+        assert_eq!(filter.status, Some(PlanStatus::Archived));
+        assert!(filter.include_archived);
+        assert_eq!(filter.title_contains, None);
+        assert_eq!(filter.directory, None);
+        assert_eq!(filter.created_after, None);
+        assert_eq!(filter.created_before, None);
+        assert_eq!(filter.completion_status, None);
+    }
+
+
+    #[test]
+    fn test_plan_filter_for_directory_active() {
+        let directory = "/path/to/project".to_string();
+        let filter = PlanFilter::for_directory(directory.clone(), false);
+
+        assert_eq!(filter.status, Some(PlanStatus::Active));
+        assert_eq!(filter.directory, Some(directory));
+        assert!(!filter.include_archived);
+        // Verify other fields use defaults
+        assert_eq!(filter.title_contains, None);
+        assert_eq!(filter.created_after, None);
+        assert_eq!(filter.created_before, None);
+        assert_eq!(filter.completion_status, None);
+    }
+
+    #[test]
+    fn test_plan_filter_for_directory_archived() {
+        let directory = "/path/to/archived".to_string();
+        let filter = PlanFilter::for_directory(directory.clone(), true);
+
+        assert_eq!(filter.status, Some(PlanStatus::Archived));
+        assert_eq!(filter.directory, Some(directory));
+        assert!(filter.include_archived);
+        // Verify other fields use defaults
+        assert_eq!(filter.title_contains, None);
+        assert_eq!(filter.created_after, None);
+        assert_eq!(filter.created_before, None);
+        assert_eq!(filter.completion_status, None);
+    }
+
+
+    #[test]
+    fn test_update_step_request_new_constructor() {
+        let request = UpdateStepRequest::new(
+            Some("Test Title".to_string()),
+            Some("Test Description".to_string()),
+            Some("Test Acceptance".to_string()),
+            Some(vec!["ref1.txt".to_string(), "ref2.txt".to_string()]),
+            Some(StepStatus::Done),
+            Some("Test Result".to_string()),
+        );
+
+        assert_eq!(request.title, Some("Test Title".to_string()));
+        assert_eq!(request.description, Some("Test Description".to_string()));
+        assert_eq!(request.acceptance_criteria, Some("Test Acceptance".to_string()));
+        assert_eq!(request.references, Some(vec!["ref1.txt".to_string(), "ref2.txt".to_string()]));
+        assert_eq!(request.status, Some(StepStatus::Done));
+        assert_eq!(request.result, Some("Test Result".to_string()));
+    }
+
+    #[test]
+    fn test_update_step_request_new_constructor_minimal() {
+        let request = UpdateStepRequest::new(None, None, None, None, None, None);
+
+        assert_eq!(request.title, None);
+        assert_eq!(request.description, None);
+        assert_eq!(request.acceptance_criteria, None);
+        assert_eq!(request.references, None);
+        assert_eq!(request.status, None);
+        assert_eq!(request.result, None);
+    }
+
+    #[test]
+    fn test_update_step_request_try_from_valid_todo() {
+        use crate::params::UpdateStep;
+
+        let mut params = UpdateStep::default();
+        params.id = 1;
+        params.status = Some("todo".to_string());
+        params.title = Some("Updated Title".to_string());
+        params.description = Some("Updated Description".to_string());
+
+        let result: Result<UpdateStepRequest, _> = params.try_into();
+        assert!(result.is_ok());
+
+        let request = result.unwrap();
+        assert_eq!(request.title, Some("Updated Title".to_string()));
+        assert_eq!(request.description, Some("Updated Description".to_string()));
+        assert_eq!(request.status, Some(StepStatus::Todo));
+        assert_eq!(request.result, None);
+    }
+
+    #[test]
+    fn test_update_step_request_try_from_valid_done_with_result() {
+        use crate::params::UpdateStep;
+
+        let mut params = UpdateStep::default();
+        params.id = 1;
+        params.status = Some("done".to_string());
+        params.result = Some("Task completed successfully".to_string());
+        params.acceptance_criteria = Some("Must pass all tests".to_string());
+        params.references = Some(vec!["file.txt".to_string()]);
+
+        let result: Result<UpdateStepRequest, _> = params.try_into();
+        assert!(result.is_ok());
+
+        let request = result.unwrap();
+        assert_eq!(request.status, Some(StepStatus::Done));
+        assert_eq!(request.result, Some("Task completed successfully".to_string()));
+        assert_eq!(request.acceptance_criteria, Some("Must pass all tests".to_string()));
+        assert_eq!(request.references, Some(vec!["file.txt".to_string()]));
+    }
+
+    #[test]
+    fn test_update_step_request_try_from_done_missing_result() {
+        use crate::params::UpdateStep;
+
+        let mut params = UpdateStep::default();
+        params.id = 1;
+        params.status = Some("done".to_string());
+        params.result = None; // Missing result for done status
+
+        let result: Result<UpdateStepRequest, _> = params.try_into();
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            crate::PlannerError::InvalidInput { field, reason } => {
+                assert_eq!(field, "result");
+                assert!(reason.contains("Result description is required"));
+            }
+            _ => panic!("Expected InvalidInput error"),
+        }
+    }
+
+    #[test]
+    fn test_update_step_request_try_from_invalid_status() {
+        use crate::params::UpdateStep;
+
+        let mut params = UpdateStep::default();
+        params.id = 1;
+        params.status = Some("invalid_status".to_string());
+
+        let result: Result<UpdateStepRequest, _> = params.try_into();
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            crate::PlannerError::InvalidInput { field, reason } => {
+                assert_eq!(field, "status");
+                assert!(reason.contains("Invalid status: invalid_status"));
+            }
+            _ => panic!("Expected InvalidInput error"),
+        }
+    }
+
+    #[test]
+    fn test_update_step_request_try_from_no_changes() {
+        use crate::params::UpdateStep;
+
+        let params = UpdateStep::default(); // All fields None
+
+        let result: Result<UpdateStepRequest, _> = params.try_into();
+        assert!(result.is_ok());
+
+        let request = result.unwrap();
+        assert_eq!(request.title, None);
+        assert_eq!(request.description, None);
+        assert_eq!(request.acceptance_criteria, None);
+        assert_eq!(request.references, None);
+        assert_eq!(request.status, None);
+        assert_eq!(request.result, None);
+    }
+
+
+    #[test]
+    fn test_create_update_request_all_fields() {
+        let request = UpdateStepRequest::new(
+            Some("New Title".to_string()),
+            Some("New Description".to_string()),
+            Some("New Acceptance".to_string()),
+            Some(vec!["ref1.txt".to_string(), "ref2.txt".to_string()]),
+            Some(StepStatus::Done),
+            Some("Completed successfully".to_string()),
+        );
+
+        assert_eq!(request.title, Some("New Title".to_string()));
+        assert_eq!(request.description, Some("New Description".to_string()));
+        assert_eq!(
+            request.acceptance_criteria,
+            Some("New Acceptance".to_string())
+        );
+        assert_eq!(
+            request.references,
+            Some(vec!["ref1.txt".to_string(), "ref2.txt".to_string()])
+        );
+        assert_eq!(request.status, Some(StepStatus::Done));
+        assert_eq!(request.result, Some("Completed successfully".to_string()));
+    }
+
+    #[test]
+    fn test_create_update_request_minimal() {
+        let request = UpdateStepRequest::new(None, None, None, None, None, None);
+
+        assert_eq!(request.title, None);
+        assert_eq!(request.description, None);
+        assert_eq!(request.acceptance_criteria, None);
+        assert_eq!(request.references, None);
+        assert_eq!(request.status, None);
+        assert_eq!(request.result, None);
+    }
+
+    #[test]
+    fn test_create_directory_filter_active() {
+        let directory = "/path/to/project".to_string();
+        let filter = PlanFilter::for_directory(directory.clone(), false);
+
+        assert_eq!(filter.status, Some(PlanStatus::Active));
+        assert_eq!(filter.directory, Some(directory));
+        assert!(!filter.include_archived);
+    }
+
+    #[test]
+    fn test_create_directory_filter_archived() {
+        let directory = "/path/to/project".to_string();
+        let filter = PlanFilter::for_directory(directory.clone(), true);
+
+        assert_eq!(filter.status, Some(PlanStatus::Archived));
+        assert_eq!(filter.directory, Some(directory));
+        assert!(filter.include_archived);
     }
 }
