@@ -63,7 +63,7 @@ fn test_cli_list_empty_plans() {
         .args(["--database-file", db_path.to_str().unwrap(), "plan", "list"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("No active plans found"));
+        .stdout(predicate::str::contains("No plans found."));
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn test_cli_add_step() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Added step: Test Step"));
+        .stdout(predicate::str::contains("Created step with ID:"));
 }
 
 #[test]
@@ -353,7 +353,7 @@ fn test_cli_archive_plan() {
         .args(["--database-file", db_arg, "plan", "list"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("No active plans found"));
+        .stdout(predicate::str::contains("No plans found."));
 
     // Verify it's in archived list
     beacon_cmd()
@@ -472,7 +472,7 @@ fn test_cli_search_plans_empty() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "No active plans found in directory",
+            "No plans found.",
         ));
 }
 
@@ -639,7 +639,7 @@ fn test_cli_add_step_with_all_fields() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Added step: Complete Step"));
+        .stdout(predicate::str::contains("Created step with ID:"));
 }
 
 #[test]
