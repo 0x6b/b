@@ -87,7 +87,6 @@ fn test_cli_list_plans_text_format() {
         .stdout(predicate::str::contains("List Title"));
 }
 
-
 #[test]
 fn test_cli_show_plan() {
     let temp_dir = create_cli_test_environment();
@@ -471,9 +470,7 @@ fn test_cli_search_plans_empty() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "No plans found.",
-        ));
+        .stdout(predicate::str::contains("No plans found."));
 }
 
 #[test]

@@ -7,15 +7,18 @@ mod cli;
 mod mcp;
 mod renderer;
 
-use anyhow::{Context, Result};
-use beacon_core::{CreateResult, OperationStatus, PlanFilter, PlanStatus, PlannerBuilder, StepStatus, UpdateResult, format_plan_list};
 use std::str::FromStr;
+
+use anyhow::{Context, Result};
+use beacon_core::{
+    format_plan_list, CreateResult, OperationStatus, PlanFilter, PlanStatus, PlannerBuilder,
+    StepStatus, UpdateResult,
+};
 use clap::Parser;
 use cli::{Cli, Commands, PlanCommands, StepCommands};
 use log::{debug, info};
 use mcp::{run_stdio_server, BeaconMcpServer};
 use renderer::TerminalRenderer;
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -84,12 +87,12 @@ async fn handle_step_command(
             let params: beacon_core::params::UpdateStep = args.into();
 
             // Parse status using FromStr implementation
-            let status = params.status.as_ref()
-                .map(|s| StepStatus::from_str(s)
-                    .unwrap_or_else(|_| {
-                        eprintln!("Warning: Invalid status '{}', defaulting to 'todo'", s);
-                        StepStatus::Todo
-                    }));
+            let status = params.status.as_ref().map(|s| {
+                StepStatus::from_str(s).unwrap_or_else(|_| {
+                    eprintln!("Warning: Invalid status '{}', defaulting to 'todo'", s);
+                    StepStatus::Todo
+                })
+            });
 
             handle_step_update(planner, &params, status, renderer).await
         }
@@ -154,8 +157,7 @@ async fn handle_plan_list(
             .count() as u32;
         let total_steps = steps.len() as u32;
 
-        let plan_summary =
-            beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
+        let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
         plan_summaries.push(plan_summary);
     }
 
@@ -287,8 +289,7 @@ async fn handle_plan_search(
             .count() as u32;
         let total_steps = steps.len() as u32;
 
-        let plan_summary =
-            beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
+        let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
         plan_summaries.push(plan_summary);
     }
 

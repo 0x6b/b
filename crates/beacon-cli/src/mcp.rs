@@ -8,13 +8,8 @@ use std::{fmt::Write, future::Future, str::FromStr, sync::Arc};
 
 use anyhow::Result;
 use beacon_core::{
-    display::{CreateResult, OperationStatus, format_plan_list},
-    params as core,
-    PlanFilter,
-    PlanStatus,
-    Planner,
-    StepStatus,
-    UpdateStepRequest,
+    display::{format_plan_list, CreateResult, OperationStatus},
+    params as core, PlanFilter, PlanStatus, Planner, StepStatus, UpdateStepRequest,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
@@ -40,9 +35,10 @@ use tracing::{debug, info};
 // 2. Adding MCP-specific derives (Deserialize, JsonSchema) for JSON handling
 // 3. Keeping the core types clean of framework dependencies
 //
-// The #[serde(transparent)] attribute ensures that serialization/deserialization
-// passes through directly to the wrapped core type, maintaining API compatibility
-// while adding the necessary trait implementations for MCP protocol handling.
+// The #[serde(transparent)] attribute ensures that
+// serialization/deserialization passes through directly to the wrapped core
+// type, maintaining API compatibility while adding the necessary trait
+// implementations for MCP protocol handling.
 
 /// Generic MCP wrapper for core parameter types with serde integration
 ///
@@ -91,7 +87,6 @@ type UpdateStep = McpParams<core::UpdateStep>;
 fn to_mcp_error(message: &str, error: beacon_core::PlannerError) -> ErrorData {
     ErrorData::internal_error(format!("{}: {}", message, error), None)
 }
-
 
 /// Definition of a prompt template
 #[derive(Debug, Clone)]
@@ -422,7 +417,9 @@ impl BeaconMcpServer {
             .map_err(|e| to_mcp_error("Failed to create plan", e))?;
 
         let result = CreateResult::new(plan);
-        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            result.to_string(),
+        )]))
     }
 
     #[tool(
@@ -464,9 +461,12 @@ impl BeaconMcpServer {
             // Convert Plans to PlanSummary with step counts
             let mut plan_summaries = Vec::new();
             for plan in plans {
-                let steps = planner.get_steps(&core::Id { id: plan.id }).await.map_err(|e| {
-                    ErrorData::internal_error(format!("Failed to get steps: {e}"), None)
-                })?;
+                let steps = planner
+                    .get_steps(&core::Id { id: plan.id })
+                    .await
+                    .map_err(|e| {
+                        ErrorData::internal_error(format!("Failed to get steps: {e}"), None)
+                    })?;
 
                 let completed_steps = steps
                     .iter()
@@ -474,7 +474,8 @@ impl BeaconMcpServer {
                     .count() as u32;
                 let total_steps = steps.len() as u32;
 
-                let summary = beacon_core::models::PlanSummary::from_plan(plan, total_steps, completed_steps);
+                let summary =
+                    beacon_core::models::PlanSummary::from_plan(plan, total_steps, completed_steps);
                 plan_summaries.push(summary);
             }
 
@@ -502,7 +503,10 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| to_mcp_error("Failed to get plan", e))?
             .ok_or_else(|| {
-                ErrorData::internal_error(format!("Plan with ID {} not found", inner_params.id), None)
+                ErrorData::internal_error(
+                    format!("Plan with ID {} not found", inner_params.id),
+                    None,
+                )
             })?;
 
         plan.steps = planner
@@ -510,7 +514,9 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| to_mcp_error("Failed to get steps", e))?;
 
-        Ok(CallToolResult::success(vec![Content::text(plan.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            plan.to_string(),
+        )]))
     }
 
     #[tool(
@@ -531,7 +537,9 @@ impl BeaconMcpServer {
             "Archived plan with ID {}. Use 'unarchive_plan' to restore it.",
             inner_params.id
         ));
-        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            result.to_string(),
+        )]))
     }
 
     #[tool(
@@ -551,7 +559,9 @@ impl BeaconMcpServer {
             "Unarchived plan with ID {}. Plan is now active again.",
             inner_params.id
         ));
-        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            result.to_string(),
+        )]))
     }
 
     #[tool(
@@ -640,7 +650,9 @@ impl BeaconMcpServer {
             .map_err(|e| ErrorData::internal_error(format!("Failed to add step: {e}"), None))?;
 
         let result = CreateResult::new(step);
-        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            result.to_string(),
+        )]))
     }
 
     #[tool(
@@ -658,7 +670,9 @@ impl BeaconMcpServer {
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
 
         let result = CreateResult::new(step);
-        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            result.to_string(),
+        )]))
     }
 
     #[tool(
@@ -680,7 +694,9 @@ impl BeaconMcpServer {
             inner_params.step1_id, inner_params.step2_id
         ));
 
-        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            result.to_string(),
+        )]))
     }
 
     #[tool(
@@ -713,7 +729,9 @@ impl BeaconMcpServer {
         let step_status = if let Some(status_str) = &inner_params.status {
             Some(StepStatus::from_str(status_str).map_err(|_| {
                 ErrorData::internal_error(
-                    format!("Invalid status: {status_str}. Must be 'todo', 'inprogress', or 'done'"),
+                    format!(
+                        "Invalid status: {status_str}. Must be 'todo', 'inprogress', or 'done'"
+                    ),
                     None,
                 )
             })?)
@@ -749,7 +767,10 @@ impl BeaconMcpServer {
 
         // Build update messages
         if inner_params.status.is_some() {
-            messages.push(format!("Updated status to '{}'", inner_params.status.as_ref().unwrap()));
+            messages.push(format!(
+                "Updated status to '{}'",
+                inner_params.status.as_ref().unwrap()
+            ));
         }
         if inner_params.title.is_some() {
             messages.push("Updated title".to_string());
@@ -787,10 +808,15 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to get step: {e}"), None))?
             .ok_or_else(|| {
-                ErrorData::internal_error(format!("Step with ID {} not found", inner_params.id), None)
+                ErrorData::internal_error(
+                    format!("Step with ID {} not found", inner_params.id),
+                    None,
+                )
             })?;
 
-        Ok(CallToolResult::success(vec![Content::text(step.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            step.to_string(),
+        )]))
     }
 
     #[tool(
@@ -823,7 +849,10 @@ impl BeaconMcpServer {
                         StepStatus::Done => "already completed",
                         StepStatus::Todo => "in todo status but could not be claimed",
                     };
-                    let message = format!("Cannot claim step {} - it is {}", inner_params.id, status_description);
+                    let message = format!(
+                        "Cannot claim step {} - it is {}",
+                        inner_params.id, status_description
+                    );
                     Ok(CallToolResult::success(vec![Content::text(message)]))
                 } else {
                     Err(ErrorData::internal_error(
@@ -1010,7 +1039,10 @@ pub async fn run_stdio_server(server: BeaconMcpServer) -> Result<()> {
     use rmcp::{transport::stdio, ServiceExt};
 
     info!("Starting Beacon MCP server on stdio");
-    debug!("Server created with {} tools", server.tool_router.list_all().len());
+    debug!(
+        "Server created with {} tools",
+        server.tool_router.list_all().len()
+    );
 
     let service = server.serve(stdio()).await.inspect_err(|e| {
         tracing::error!("serving error: {e:?}");

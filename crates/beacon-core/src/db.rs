@@ -769,8 +769,8 @@ impl Database {
         // Determine the result value based on the status change
         let new_result = if let Some(new_status) = request.status {
             match new_status {
-                StepStatus::Done => request.result, /* Use provided result (already validated as
-                                                      * required) */
+                StepStatus::Done => request.result, // Use provided result (already validated as
+                // required)
                 StepStatus::Todo | StepStatus::InProgress => None, /* Clear result for non-done
                                                                     * statuses */
             }

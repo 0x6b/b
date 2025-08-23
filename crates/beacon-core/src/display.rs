@@ -1,14 +1,15 @@
 //! Display formatting functions and result types.
 //!
-//! This module provides helper functions for formatting collections and wrapper types
-//! for operation results, enabling consistent formatting across different
+//! This module provides helper functions for formatting collections and wrapper
+//! types for operation results, enabling consistent formatting across different
 //! output contexts (lists, operations, etc.).
 //!
 //! # Architecture: Display Functions and Wrappers
 //!
-//! The Display architecture combines direct Display implementations on domain models
-//! with formatting functions for collections and wrapper types for operation results.
-//! This approach provides both idiomatic Rust patterns and context-specific formatting.
+//! The Display architecture combines direct Display implementations on domain
+//! models with formatting functions for collections and wrapper types for
+//! operation results. This approach provides both idiomatic Rust patterns and
+//! context-specific formatting.
 //!
 //! ```text
 //! ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -20,9 +21,12 @@
 //!
 //! ## Benefits
 //!
-//! 1. **Idiomatic Collections**: Helper functions format slices without wrapper overhead
-//! 2. **Separation of Concerns**: Business logic in models, presentation in functions
-//! 3. **Flexibility**: Functions can handle different contexts (titles, empty collections)
+//! 1. **Idiomatic Collections**: Helper functions format slices without wrapper
+//!    overhead
+//! 2. **Separation of Concerns**: Business logic in models, presentation in
+//!    functions
+//! 3. **Flexibility**: Functions can handle different contexts (titles, empty
+//!    collections)
 //! 4. **Consistency**: All output goes through standardized display logic
 //!
 //! ## Types and Functions
@@ -39,10 +43,12 @@
 //! ### Basic List Formatting
 //!
 //! ```rust
-//! use beacon_core::display::format_plan_list;
-//! use beacon_core::models::{PlanSummary, PlanStatus};
+//! use beacon_core::{
+//!     display::format_plan_list,
+//!     models::{PlanStatus, PlanSummary},
+//! };
 //! use jiff::Timestamp;
-//! 
+//!
 //! // Create a sample plan
 //! let plan = PlanSummary {
 //!     id: 1,
@@ -57,11 +63,11 @@
 //!     pending_steps: 3,
 //! };
 //! let plans = vec![plan];
-//! 
-//! // Format a collection of plans  
+//!
+//! // Format a collection of plans
 //! let output = format_plan_list(&plans, None);
 //! assert!(output.contains("My Project"));
-//! 
+//!
 //! // With a title header
 //! let titled_output = format_plan_list(&plans, Some("Active Plans"));
 //! assert!(titled_output.contains("# Active Plans"));
@@ -70,10 +76,12 @@
 //! ### Operation Results
 //!
 //! ```rust
-//! use beacon_core::display::{CreateResult, UpdateResult};
-//! use beacon_core::models::{Plan, PlanStatus};
+//! use beacon_core::{
+//!     display::{CreateResult, UpdateResult},
+//!     models::{Plan, PlanStatus},
+//! };
 //! use jiff::Timestamp;
-//! 
+//!
 //! // Create a sample plan for testing
 //! let plan = Plan {
 //!     id: 1,
@@ -85,12 +93,12 @@
 //!     updated_at: Timestamp::now(),
 //!     steps: vec![],
 //! };
-//! 
+//!
 //! // Format creation results
 //! let result = CreateResult::new(plan.clone());
 //! let output = format!("{}", result);
 //! assert!(output.contains("Created plan with ID: 1"));
-//! 
+//!
 //! // Format updates with change tracking
 //! let changes = vec!["Updated title".to_string(), "Added description".to_string()];
 //! let update_result = UpdateResult::with_changes(plan, changes);
@@ -102,12 +110,12 @@
 //!
 //! ```rust
 //! use beacon_core::display::OperationStatus;
-//! 
+//!
 //! // Success messages
 //! let success = OperationStatus::success("Operation completed successfully".to_string());
 //! println!("{}", success);
-//! 
-//! // Error messages  
+//!
+//! // Error messages
 //! let error = OperationStatus::failure("Operation failed".to_string());
 //! println!("{}", error);
 //! ```
@@ -116,14 +124,14 @@
 //!
 //! 1. **Immutable Wrappers**: Wrappers hold references, not owned data
 //! 2. **Builder Pattern**: Optional configurations via chained methods
-//! 3. **Markdown Output**: All formatters produce markdown for rich terminal display
-//! 4. **Consistent Structure**: Headers, metadata, content follow standard patterns
+//! 3. **Markdown Output**: All formatters produce markdown for rich terminal
+//!    display
+//! 4. **Consistent Structure**: Headers, metadata, content follow standard
+//!    patterns
 
 use std::fmt;
 
 use crate::models::{Plan, PlanSummary, Step};
-
-
 
 /// Wrapper type for displaying the result of create operations.
 ///
@@ -138,8 +146,10 @@ use crate::models::{Plan, PlanSummary, Step};
 /// # Examples
 ///
 /// ```rust
-/// use beacon_core::display::CreateResult;
-/// use beacon_core::models::{Plan, PlanStatus};
+/// use beacon_core::{
+///     display::CreateResult,
+///     models::{Plan, PlanStatus},
+/// };
 /// use jiff::Timestamp;
 ///
 /// let plan = Plan {
@@ -194,8 +204,10 @@ impl fmt::Display for CreateResult<Step> {
 /// # Examples
 ///
 /// ```rust
-/// use beacon_core::display::UpdateResult;
-/// use beacon_core::models::{Step, StepStatus};
+/// use beacon_core::{
+///     display::UpdateResult,
+///     models::{Step, StepStatus},
+/// };
 /// use jiff::Timestamp;
 ///
 /// let updated_step = Step {
@@ -237,17 +249,14 @@ impl<T> UpdateResult<T> {
 
     /// Create an UpdateResult with a list of changes made.
     pub fn with_changes(resource: T, changes: Vec<String>) -> Self {
-        Self {
-            resource,
-            changes,
-        }
+        Self { resource, changes }
     }
 }
 
 impl fmt::Display for UpdateResult<Plan> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Updated plan with ID: {}", self.resource.id)?;
-        
+
         if !self.changes.is_empty() {
             writeln!(f)?;
             writeln!(f, "Changes made:")?;
@@ -255,7 +264,7 @@ impl fmt::Display for UpdateResult<Plan> {
                 writeln!(f, "- {change}")?;
             }
         }
-        
+
         writeln!(f)?;
         write!(f, "{}", self.resource)
     }
@@ -264,7 +273,7 @@ impl fmt::Display for UpdateResult<Plan> {
 impl fmt::Display for UpdateResult<Step> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Updated step with ID: {}", self.resource.id)?;
-        
+
         if !self.changes.is_empty() {
             writeln!(f)?;
             writeln!(f, "Changes made:")?;
@@ -272,7 +281,7 @@ impl fmt::Display for UpdateResult<Step> {
                 writeln!(f, "- {change}")?;
             }
         }
-        
+
         writeln!(f)?;
         write!(f, "{}", self.resource)
     }
@@ -295,13 +304,21 @@ impl<T> DeleteResult<T> {
 
 impl fmt::Display for DeleteResult<Plan> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Deleted plan '{}' (ID: {})", self.resource.title, self.resource.id)
+        writeln!(
+            f,
+            "Deleted plan '{}' (ID: {})",
+            self.resource.title, self.resource.id
+        )
     }
 }
 
 impl fmt::Display for DeleteResult<Step> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Deleted step '{}' (ID: {})", self.resource.title, self.resource.id)
+        writeln!(
+            f,
+            "Deleted step '{}' (ID: {})",
+            self.resource.title, self.resource.id
+        )
     }
 }
 
@@ -349,20 +366,20 @@ impl fmt::Display for OperationStatus {
 /// without requiring wrapper types. Handles empty collections gracefully.
 pub fn format_plan_list(plans: &[PlanSummary], title: Option<&str>) -> String {
     let mut result = String::new();
-    
+
     if let Some(title) = title {
         result.push_str(&format!("# {title}\n\n"));
     }
-    
+
     if plans.is_empty() {
         result.push_str("No plans found.\n");
         return result;
     }
-    
+
     for plan in plans {
         result.push_str(&format!("{plan}"));
     }
-    
+
     result
 }
 
@@ -372,28 +389,29 @@ pub fn format_plan_list(plans: &[PlanSummary], title: Option<&str>) -> String {
 /// without requiring wrapper types. Handles empty collections gracefully.
 pub fn format_step_list(steps: &[Step], title: Option<&str>) -> String {
     let mut result = String::new();
-    
+
     if let Some(title) = title {
         result.push_str(&format!("# {title}\n\n"));
     }
-    
+
     if steps.is_empty() {
         result.push_str("No steps found.\n");
         return result;
     }
-    
+
     for step in steps {
         result.push_str(&format!("{step}"));
     }
-    
+
     result
 }
 
 #[cfg(test)]
 mod tests {
+    use jiff::Timestamp;
+
     use super::*;
     use crate::models::{PlanStatus, StepStatus};
-    use jiff::Timestamp;
 
     fn create_test_plan_summary() -> PlanSummary {
         PlanSummary {

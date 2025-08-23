@@ -14,12 +14,13 @@
 //!
 //! ### Design Benefits
 //!
-//! 1. **Framework Isolation**: Core parameter types remain free of clap-specific
-//!    attributes and derives, enabling reuse across different interfaces.
+//! 1. **Framework Isolation**: Core parameter types remain free of
+//!    clap-specific attributes and derives, enabling reuse across different
+//!    interfaces.
 //!
-//! 2. **Validation Separation**: CLI-specific validation (argument parsing, help
-//!    generation) is handled by clap derives, while business logic validation
-//!    remains in the core domain.
+//! 2. **Validation Separation**: CLI-specific validation (argument parsing,
+//!    help generation) is handled by clap derives, while business logic
+//!    validation remains in the core domain.
 //!
 //! 3. **Interface Evolution**: CLI can evolve its argument structure (aliases,
 //!    help text, validation) without affecting core parameter definitions.
@@ -33,7 +34,7 @@
 //! #[derive(Args)]
 //! pub struct OperationArgs {
 //!     pub field: String,
-//!     #[arg(short, long)]  // CLI-specific attributes
+//!     #[arg(short, long)] // CLI-specific attributes
 //!     pub optional_field: Option<String>,
 //! }
 //!
@@ -55,8 +56,8 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
 use beacon_core::params::*;
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(version, about, name = "beacon")]
@@ -69,7 +70,6 @@ pub struct Cli {
     /// Disable colored output and use plain text
     #[arg(long, global = true)]
     pub no_color: bool,
-
 
     #[command(subcommand)]
     pub command: Commands,
@@ -92,7 +92,7 @@ pub enum Commands {
 }
 
 // ============================================================================
-// CLI Argument Wrapper Implementations 
+// CLI Argument Wrapper Implementations
 // ============================================================================
 //
 // These structures implement the CLI side of the parameter wrapper pattern.
@@ -243,8 +243,9 @@ pub struct AddStepArgs {
 impl From<AddStepArgs> for StepCreate {
     /// Convert CLI arguments to core StepCreate
     ///
-    /// Note how CLI-specific features (value_delimiter) are handled transparently
-    /// by clap, while the core parameter structure remains simple and focused.
+    /// Note how CLI-specific features (value_delimiter) are handled
+    /// transparently by clap, while the core parameter structure remains
+    /// simple and focused.
     fn from(val: AddStepArgs) -> Self {
         StepCreate {
             plan_id: val.plan_id,
@@ -378,4 +379,3 @@ impl std::fmt::Display for StepStatusArg {
         }
     }
 }
-

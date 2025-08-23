@@ -7,18 +7,24 @@
 //!
 //! The crate implements a Display-based architecture for formatting output:
 //!
-//! - **Domain Models** ([`models`]): Implement [`std::fmt::Display`] for direct formatting
-//! - **Display Wrappers** ([`display`]): Provide contextual and specialized formatting
-//! - **Terminal Rendering**: Rich markdown output via the CLI's terminal renderer
+//! - **Domain Models** ([`models`]): Implement [`std::fmt::Display`] for direct
+//!   formatting
+//! - **Display Wrappers** ([`display`]): Provide contextual and specialized
+//!   formatting
+//! - **Terminal Rendering**: Rich markdown output via the CLI's terminal
+//!   renderer
 //!
-//! This separation allows the same data to be formatted differently depending on
-//! context (lists vs. individual items, creation results vs. updates, etc.) while
-//! maintaining consistency across all output.
+//! This separation allows the same data to be formatted differently depending
+//! on context (lists vs. individual items, creation results vs. updates, etc.)
+//! while maintaining consistency across all output.
 //!
 //! # Quick Start
 //!
 //! ```rust
-//! use beacon_core::{format_plan_list, models::{PlanSummary, PlanStatus}};
+//! use beacon_core::{
+//!     format_plan_list,
+//!     models::{PlanStatus, PlanSummary},
+//! };
 //! use jiff::Timestamp;
 //!
 //! // Create a sample plan summary
@@ -52,13 +58,12 @@ pub mod planner;
 // Re-export commonly used types
 pub use db::Database;
 pub use display::{
-    CreateResult, DeleteResult, OperationStatus, UpdateResult,
-    format_plan_list, format_step_list,
+    format_plan_list, format_step_list, CreateResult, DeleteResult, OperationStatus, UpdateResult,
 };
 pub use error::{PlannerError, Result};
 pub use models::{
-    CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
-    UpdateStepRequest, format_datetime,
+    format_datetime, CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
+    UpdateStepRequest,
 };
 pub use params::{
     CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
