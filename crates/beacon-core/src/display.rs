@@ -91,7 +91,7 @@
 //! };
 //! 
 //! // Format creation results
-//! let result = CreateResult::new(plan.clone(), "plan");
+//! let result = CreateResult::new(plan.clone());
 //! let output = format!("{}", result);
 //! assert!(output.contains("Created plan with ID: 1"));
 //! 
@@ -327,27 +327,23 @@ impl<'a> fmt::Display for StepList<'a> {
 ///     steps: vec![],
 /// };
 ///
-/// let result = CreateResult::new(plan, "plan");
+/// let result = CreateResult::new(plan);
 /// println!("{}", result);
 /// ```
 pub struct CreateResult<T> {
     pub resource: T,
-    pub resource_type: &'static str,
 }
 
 impl<T> CreateResult<T> {
     /// Create a new CreateResult wrapper.
-    pub fn new(resource: T, resource_type: &'static str) -> Self {
-        Self {
-            resource,
-            resource_type,
-        }
+    pub fn new(resource: T) -> Self {
+        Self { resource }
     }
 }
 
 impl fmt::Display for CreateResult<Plan> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Created {} with ID: {}", self.resource_type, self.resource.id)?;
+        writeln!(f, "Created plan with ID: {}", self.resource.id)?;
         writeln!(f)?;
         write!(f, "{}", self.resource)
     }
@@ -355,7 +351,7 @@ impl fmt::Display for CreateResult<Plan> {
 
 impl fmt::Display for CreateResult<Step> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Created {} with ID: {}", self.resource_type, self.resource.id)?;
+        writeln!(f, "Created step with ID: {}", self.resource.id)?;
         writeln!(f)?;
         write!(f, "{}", self.resource)
     }

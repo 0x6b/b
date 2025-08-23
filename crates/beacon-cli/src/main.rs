@@ -109,7 +109,7 @@ async fn handle_plan_create(
         .await
         .context("Failed to create plan")?;
 
-    let result = CreateResult::new(plan, "plan");
+    let result = CreateResult::new(plan);
     renderer.render(&result.to_string())?;
 
     Ok(())
@@ -316,7 +316,7 @@ async fn handle_step_add(
         .await
         .with_context(|| format!("Failed to add step to plan {}", params.plan_id))?;
 
-    let result = CreateResult::new(step, "step");
+    let result = CreateResult::new(step);
     renderer.render(&result.to_string())?;
 
     Ok(())
@@ -335,7 +335,7 @@ async fn handle_step_insert(
         )
     })?;
 
-    let result = CreateResult::new(step, "step");
+    let result = CreateResult::new(step);
     renderer.render(&result.to_string())?;
 
     Ok(())

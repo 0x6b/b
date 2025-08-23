@@ -421,7 +421,7 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| to_mcp_error("Failed to create plan", e))?;
 
-        let result = CreateResult::new(plan, "plan");
+        let result = CreateResult::new(plan);
         Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
@@ -639,7 +639,7 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to add step: {e}"), None))?;
 
-        let result = CreateResult::new(step, "step");
+        let result = CreateResult::new(step);
         Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
@@ -657,7 +657,7 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
 
-        let result = CreateResult::new(step, "step");
+        let result = CreateResult::new(step);
         Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 

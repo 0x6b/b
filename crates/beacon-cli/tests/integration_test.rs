@@ -57,7 +57,7 @@ async fn test_plan_display_consistency() {
     };
     
     let plan = planner.create_plan(&params).await.expect("Failed to create plan");
-    let result = beacon_core::display::CreateResult::new(plan, "plan");
+    let result = beacon_core::display::CreateResult::new(plan);
     let direct_output = result.to_string();
     
     // Both outputs should contain the same structure (ignoring specific IDs and timestamps)
@@ -105,7 +105,7 @@ async fn test_step_display_consistency() {
     };
     
     let step = planner.add_step(&step_params).await.expect("Failed to add step");
-    let result = beacon_core::display::CreateResult::new(step, "step");
+    let result = beacon_core::display::CreateResult::new(step);
     let direct_output = result.to_string();
     
     // Both outputs should have the same structure
