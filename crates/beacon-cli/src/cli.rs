@@ -109,7 +109,7 @@ pub enum Commands {
 
 /// Create a new plan
 ///
-/// CLI wrapper for CreatePlanParams that adds clap-specific argument handling
+/// CLI wrapper for CreatePlan that adds clap-specific argument handling
 /// including short/long flags, help text generation, and input validation.
 #[derive(Args)]
 pub struct CreatePlanArgs {
@@ -123,13 +123,13 @@ pub struct CreatePlanArgs {
     pub directory: Option<String>,
 }
 
-impl From<CreatePlanArgs> for CreatePlanParams {
+impl From<CreatePlanArgs> for CreatePlan {
     /// Convert CLI arguments to core parameter structure
     ///
     /// This explicit conversion ensures type safety and makes the boundary
     /// between CLI concerns and core logic clear and verifiable.
     fn from(val: CreatePlanArgs) -> Self {
-        CreatePlanParams {
+        CreatePlan {
             title: val.title,
             description: val.description,
             directory: val.directory,
@@ -144,9 +144,9 @@ pub struct ListPlansArgs {
     pub archived: bool,
 }
 
-impl From<ListPlansArgs> for ListPlansParams {
+impl From<ListPlansArgs> for ListPlans {
     fn from(val: ListPlansArgs) -> Self {
-        ListPlansParams {
+        ListPlans {
             archived: val.archived,
         }
     }
@@ -158,9 +158,9 @@ pub struct ShowPlanArgs {
     pub id: u64,
 }
 
-impl From<ShowPlanArgs> for IdParams {
+impl From<ShowPlanArgs> for Id {
     fn from(val: ShowPlanArgs) -> Self {
-        IdParams { id: val.id }
+        Id { id: val.id }
     }
 }
 
@@ -170,9 +170,9 @@ pub struct ArchivePlanArgs {
     pub id: u64,
 }
 
-impl From<ArchivePlanArgs> for IdParams {
+impl From<ArchivePlanArgs> for Id {
     fn from(val: ArchivePlanArgs) -> Self {
-        IdParams { id: val.id }
+        Id { id: val.id }
     }
 }
 
@@ -182,9 +182,9 @@ pub struct UnarchivePlanArgs {
     pub id: u64,
 }
 
-impl From<UnarchivePlanArgs> for IdParams {
+impl From<UnarchivePlanArgs> for Id {
     fn from(val: UnarchivePlanArgs) -> Self {
-        IdParams { id: val.id }
+        Id { id: val.id }
     }
 }
 
@@ -196,9 +196,9 @@ pub struct SearchPlansArgs {
     pub archived: bool,
 }
 
-impl From<SearchPlansArgs> for SearchPlansParams {
+impl From<SearchPlansArgs> for SearchPlans {
     fn from(val: SearchPlansArgs) -> Self {
-        SearchPlansParams {
+        SearchPlans {
             directory: val.directory,
             archived: val.archived,
         }
@@ -243,13 +243,13 @@ pub struct AddStepArgs {
     pub references: Vec<String>,
 }
 
-impl From<AddStepArgs> for StepCreateParams {
-    /// Convert CLI arguments to core StepCreateParams
+impl From<AddStepArgs> for StepCreate {
+    /// Convert CLI arguments to core StepCreate
     ///
     /// Note how CLI-specific features (value_delimiter) are handled transparently
     /// by clap, while the core parameter structure remains simple and focused.
     fn from(val: AddStepArgs) -> Self {
-        StepCreateParams {
+        StepCreate {
             plan_id: val.plan_id,
             title: val.title,
             description: val.description,
@@ -273,10 +273,10 @@ pub struct InsertStepArgs {
     pub references: Vec<String>,
 }
 
-impl From<InsertStepArgs> for InsertStepParams {
+impl From<InsertStepArgs> for InsertStep {
     fn from(val: InsertStepArgs) -> Self {
-        InsertStepParams {
-            step: StepCreateParams {
+        InsertStep {
+            step: StepCreate {
                 plan_id: val.plan_id,
                 title: val.title,
                 description: val.description,
@@ -306,9 +306,9 @@ pub struct UpdateStepArgs {
     pub result: Option<String>,
 }
 
-impl From<UpdateStepArgs> for UpdateStepParams {
+impl From<UpdateStepArgs> for UpdateStep {
     fn from(val: UpdateStepArgs) -> Self {
-        UpdateStepParams {
+        UpdateStep {
             id: val.id,
             status: val.status.map(|s| s.to_string()),
             title: val.title,
@@ -326,9 +326,9 @@ pub struct ShowStepArgs {
     pub id: u64,
 }
 
-impl From<ShowStepArgs> for IdParams {
+impl From<ShowStepArgs> for Id {
     fn from(val: ShowStepArgs) -> Self {
-        IdParams { id: val.id }
+        Id { id: val.id }
     }
 }
 
@@ -339,9 +339,9 @@ pub struct SwapStepsArgs {
     pub step2_id: u64,
 }
 
-impl From<SwapStepsArgs> for SwapStepsParams {
+impl From<SwapStepsArgs> for SwapSteps {
     fn from(val: SwapStepsArgs) -> Self {
-        SwapStepsParams {
+        SwapSteps {
             step1_id: val.step1_id,
             step2_id: val.step2_id,
         }
