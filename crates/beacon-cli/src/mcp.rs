@@ -7,7 +7,20 @@
 use std::{fmt::Write, future::Future, sync::Arc};
 
 use anyhow::Result;
-use beacon_core::{PlanFilter, PlanStatus, Planner, StepStatus};
+use beacon_core::{
+    CreatePlanParams as CoreCreatePlanParams,
+    IdParams as CoreIdParams,
+    InsertStepParams as CoreInsertStepParams,
+    ListPlansParams as CoreListPlansParams,
+    PlanFilter,
+    PlanStatus,
+    Planner,
+    SearchPlansParams as CoreSearchPlansParams,
+    StepCreateParams as CoreStepCreateParams,
+    StepStatus,
+    SwapStepsParams as CoreSwapStepsParams,
+    UpdateStepParams as CoreUpdateStepParams,
+};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
@@ -23,94 +36,128 @@ use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::{debug, info};
 
-/// Generic parameters for operations requiring just an ID
+// ============================================================================
+// Parameter Wrapper Implementations
+// ============================================================================
+//
+// These wrapper structs implement the parameter wrapper pattern by:
+// 1. Wrapping core parameter types in transparent serde containers
+// 2. Adding MCP-specific derives (Deserialize, JsonSchema) for JSON handling
+// 3. Keeping the core types clean of framework dependencies
+//
+// The #[serde(transparent)] attribute ensures that serialization/deserialization
+// passes through directly to the wrapped core type, maintaining API compatibility
+// while adding the necessary trait implementations for MCP protocol handling.
+
+/// MCP wrapper for core IdParams with serde integration
+///
+/// Provides JSON deserialization and schema generation for operations that
+/// require only an ID parameter (show_plan, archive_plan, show_step, etc.).
 #[derive(Debug, Deserialize, JsonSchema)]
-struct IdParams {
-    id: u64,
+#[serde(transparent)]
+struct IdParams(CoreIdParams);
+
+impl AsRef<CoreIdParams> for IdParams {
+    fn as_ref(&self) -> &CoreIdParams {
+        &self.0
+    }
 }
 
-/// Parameters for creating a plan
+/// MCP wrapper for core CreatePlanParams with serde integration
+///
+/// Enables JSON handling for plan creation requests with title, description,
+/// and directory parameters while maintaining the core type's simplicity.
 #[derive(Debug, Deserialize, JsonSchema)]
-struct CreatePlanParams {
-    title: String,
-    description: Option<String>,
-    directory: Option<String>,
+#[serde(transparent)]
+struct CreatePlanParams(CoreCreatePlanParams);
+
+impl AsRef<CoreCreatePlanParams> for CreatePlanParams {
+    fn as_ref(&self) -> &CoreCreatePlanParams {
+        &self.0
+    }
 }
 
-/// Parameters for listing plans
+/// MCP wrapper for core ListPlansParams with serde integration
+///
+/// Provides JSON support for plan listing requests with archived/active filtering.
 #[derive(Debug, Deserialize, JsonSchema)]
-struct ListPlansParams {
-    #[serde(default)]
-    archived: bool,
+#[serde(transparent)]
+struct ListPlansParams(CoreListPlansParams);
+
+impl AsRef<CoreListPlansParams> for ListPlansParams {
+    fn as_ref(&self) -> &CoreListPlansParams {
+        &self.0
+    }
 }
 
-/// Parameters for searching plans
+/// MCP wrapper for core SearchPlansParams with serde integration
+///
+/// Enables JSON handling for directory-based plan search operations with
+/// archived status filtering capabilities.
 #[derive(Debug, Deserialize, JsonSchema)]
-struct SearchPlansParams {
-    directory: String,
-    #[serde(default)]
-    archived: bool,
+#[serde(transparent)]
+struct SearchPlansParams(CoreSearchPlansParams);
+
+impl AsRef<CoreSearchPlansParams> for SearchPlansParams {
+    fn as_ref(&self) -> &CoreSearchPlansParams {
+        &self.0
+    }
 }
 
-/// Base parameters for step creation/modification
+/// MCP wrapper for core StepCreateParams with serde integration
+///
+/// Provides JSON deserialization for step creation with title, description,
+/// acceptance criteria, and references while preserving the core logic separation.
 #[derive(Debug, Deserialize, JsonSchema)]
-struct StepCreateParams {
-    plan_id: u64,
-    title: String,
-    description: Option<String>,
-    acceptance_criteria: Option<String>,
-    #[serde(default)]
-    references: Vec<String>,
+#[serde(transparent)]
+struct StepCreateParams(CoreStepCreateParams);
+
+impl AsRef<CoreStepCreateParams> for StepCreateParams {
+    fn as_ref(&self) -> &CoreStepCreateParams {
+        &self.0
+    }
 }
 
-/// Parameters for inserting a step at a specific position
+/// MCP wrapper for core InsertStepParams with serde integration
+///
+/// Enables JSON handling for positioned step insertion, combining step creation
+/// parameters with position information for precise placement in plans.
 #[derive(Debug, Deserialize, JsonSchema)]
-struct InsertStepParams {
-    #[serde(flatten)]
-    step: StepCreateParams,
-    position: u32,
+#[serde(transparent)]
+struct InsertStepParams(CoreInsertStepParams);
+
+impl AsRef<CoreInsertStepParams> for InsertStepParams {
+    fn as_ref(&self) -> &CoreInsertStepParams {
+        &self.0
+    }
 }
 
-/// Parameters for swapping two steps
+/// MCP wrapper for core SwapStepsParams with serde integration
+///
+/// Provides JSON support for step reordering operations by swapping two steps
+/// within the same plan while maintaining referential integrity.
 #[derive(Debug, Deserialize, JsonSchema)]
-struct SwapStepsParams {
-    step1_id: u64,
-    step2_id: u64,
+#[serde(transparent)]
+struct SwapStepsParams(CoreSwapStepsParams);
+
+impl AsRef<CoreSwapStepsParams> for SwapStepsParams {
+    fn as_ref(&self) -> &CoreSwapStepsParams {
+        &self.0
+    }
 }
 
-/// Parameters for updating a step
+/// MCP wrapper for core UpdateStepParams with serde integration
+///
+/// Enables JSON handling for step updates including status changes, content
+/// modifications, and result documentation when marking steps as complete.
 #[derive(Debug, Deserialize, JsonSchema)]
-struct UpdateStepParams {
-    /// Step ID to update
-    id: u64,
+#[serde(transparent)]
+struct UpdateStepParams(CoreUpdateStepParams);
 
-    /// New status for the step ('todo', 'inprogress', or 'done')
-    status: Option<String>,
-
-    /// Title of the step
-    title: Option<String>,
-
-    /// Detailed description of the step
-    description: Option<String>,
-
-    /// Acceptance criteria for the step
-    acceptance_criteria: Option<String>,
-
-    /// References (URLs, file paths, etc.)
-    references: Option<Vec<String>>,
-
-    /// Result description - REQUIRED when changing status to 'done'.
-    /// This field documents what was actually accomplished when completing the
-    /// step. It will be IGNORED when:
-    /// - Changing status to 'todo' or 'inprogress'
-    /// - Updating other fields without changing status
-    /// - Creating a new step (steps always start as 'todo')
-    ///
-    /// Example: "Implemented user authentication using JWT tokens with
-    /// refresh token rotation. Added middleware for route protection and
-    /// created login/logout endpoints. All tests passing."
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    result: Option<String>,
+impl AsRef<CoreUpdateStepParams> for UpdateStepParams {
+    fn as_ref(&self) -> &CoreUpdateStepParams {
+        &self.0
+    }
 }
 
 /// Helper to convert planner errors to MCP errors
@@ -441,17 +488,14 @@ impl BeaconMcpServer {
         debug!("create_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         let plan = planner
-            .create_plan(
-                &params.title,
-                params.description.as_deref(),
-                params.directory.as_deref(),
-            )
+            .create_plan(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to create plan", e))?;
 
         let mut result = format!("Created plan: {} (ID: {})", plan.title, plan.id);
-        if let Some(desc) = params.description {
+        if let Some(desc) = &inner_params.description {
             result.push_str(&format!("\nDescription: {desc}"));
         }
         if let Some(dir) = &plan.directory {
@@ -469,7 +513,8 @@ impl BeaconMcpServer {
         debug!("list_plans: {:?}", params);
 
         let planner = self.planner.lock().await;
-        let filter = if params.archived {
+        let inner_params = params.as_ref();
+        let filter = if inner_params.archived {
             Some(PlanFilter {
                 status: Some(PlanStatus::Archived),
                 ..Default::default()
@@ -489,7 +534,7 @@ impl BeaconMcpServer {
         let mut result = String::new();
 
         if plans.is_empty() {
-            if params.archived {
+            if inner_params.archived {
                 writeln!(result, "# No archived plans found").unwrap();
             } else {
                 writeln!(result, "# No active plans found").unwrap();
@@ -498,7 +543,7 @@ impl BeaconMcpServer {
             // Get step counts for each plan
             let mut plans_with_progress = Vec::new();
             for plan in plans {
-                let steps = planner.get_steps(plan.id).await.map_err(|e| {
+                let steps = planner.get_steps(&beacon_core::params::IdParams { id: plan.id }).await.map_err(|e| {
                     ErrorData::internal_error(format!("Failed to get steps: {e}"), None)
                 })?;
 
@@ -511,7 +556,7 @@ impl BeaconMcpServer {
                 plans_with_progress.push((plan, completed_steps, total_steps));
             }
 
-            if params.archived {
+            if inner_params.archived {
                 writeln!(result, "# Archived Plans").unwrap();
             } else {
                 writeln!(result, "# Active Plans").unwrap();
@@ -555,16 +600,17 @@ impl BeaconMcpServer {
         debug!("show_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         let plan = planner
-            .get_plan(params.id)
+            .get_plan(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to get plan", e))?
             .ok_or_else(|| {
-                ErrorData::internal_error(format!("Plan with ID {} not found", params.id), None)
+                ErrorData::internal_error(format!("Plan with ID {} not found", inner_params.id), None)
             })?;
 
         let steps = planner
-            .get_steps(params.id)
+            .get_steps(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to get steps", e))?;
 
@@ -657,14 +703,15 @@ impl BeaconMcpServer {
         debug!("archive_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         planner
-            .archive_plan(params.id)
+            .archive_plan(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to archive plan: {e}"), None))?;
 
         let result = format!(
             "Archived plan with ID {}. Use 'unarchive_plan' to restore it.",
-            params.id
+            inner_params.id
         );
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
@@ -677,13 +724,14 @@ impl BeaconMcpServer {
         debug!("unarchive_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
-        planner.unarchive_plan(params.id).await.map_err(|e| {
+        let inner_params = params.as_ref();
+        planner.unarchive_plan(inner_params).await.map_err(|e| {
             ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None)
         })?;
 
         let result = format!(
             "Unarchived plan with ID {}. Plan is now active again.",
-            params.id
+            inner_params.id
         );
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
@@ -696,13 +744,14 @@ impl BeaconMcpServer {
         debug!("search_plans: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
 
         // Use the directory-specific search method which respects archived status
-        let plans = if params.archived {
+        let plans = if inner_params.archived {
             // For archived plans, search all plans and filter by directory
             let filter = Some(PlanFilter {
                 status: Some(PlanStatus::Archived),
-                directory: Some(params.directory.clone()),
+                directory: Some(inner_params.directory.clone()),
                 ..Default::default()
             });
             planner.list_plans(filter).await.map_err(|e| {
@@ -711,7 +760,7 @@ impl BeaconMcpServer {
         } else {
             // For active plans, use the existing directory search
             planner
-                .search_plans_by_directory(&params.directory)
+                .search_plans_by_directory(inner_params)
                 .await
                 .map_err(|e| {
                     ErrorData::internal_error(format!("Failed to search plans: {e}"), None)
@@ -719,18 +768,18 @@ impl BeaconMcpServer {
         };
 
         let result = if plans.is_empty() {
-            let status_text = if params.archived {
+            let status_text = if inner_params.archived {
                 "archived"
             } else {
                 "active"
             };
             format!(
                 "No {} plans found in directory: {}",
-                status_text, params.directory
+                status_text, inner_params.directory
             )
         } else {
             let mut result = String::new();
-            let status_text = if params.archived {
+            let status_text = if inner_params.archived {
                 "archived"
             } else {
                 "active"
@@ -739,7 +788,7 @@ impl BeaconMcpServer {
                 result,
                 "# {} plans in directory: {}\n",
                 status_text.to_uppercase(),
-                params.directory
+                inner_params.directory
             )
             .unwrap();
             for plan in plans {
@@ -766,14 +815,9 @@ impl BeaconMcpServer {
         debug!("add_step: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         let step = planner
-            .add_step(
-                params.plan_id,
-                &params.title,
-                params.description.as_deref(),
-                params.acceptance_criteria.as_deref(),
-                params.references,
-            )
+            .add_step(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to add step: {e}"), None))?;
 
@@ -781,7 +825,7 @@ impl BeaconMcpServer {
         writeln!(
             result,
             "Added step: {} (ID: {}) to plan {}",
-            step.title, step.id, params.plan_id
+            step.title, step.id, inner_params.plan_id
         )
         .unwrap();
         if let Some(desc) = &step.description {
@@ -805,15 +849,9 @@ impl BeaconMcpServer {
         debug!("insert_step: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         let step = planner
-            .insert_step(
-                params.step.plan_id,
-                params.position,
-                &params.step.title,
-                params.step.description.as_deref(),
-                params.step.acceptance_criteria.as_deref(),
-                params.step.references,
-            )
+            .insert_step(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
 
@@ -821,7 +859,7 @@ impl BeaconMcpServer {
         writeln!(
             result,
             "Inserted step: {} (ID: {}) at position {} in plan {}",
-            step.title, step.id, params.position, params.step.plan_id
+            step.title, step.id, inner_params.position, inner_params.step.plan_id
         )
         .unwrap();
         if let Some(desc) = &step.description {
@@ -845,14 +883,15 @@ impl BeaconMcpServer {
         debug!("swap_steps: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         planner
-            .swap_steps(params.step1_id, params.step2_id)
+            .swap_steps(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to swap steps: {e}"), None))?;
 
         let result = format!(
             "Successfully swapped the order of steps {} and {}",
-            params.step1_id, params.step2_id
+            inner_params.step1_id, inner_params.step2_id
         );
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
@@ -881,10 +920,11 @@ impl BeaconMcpServer {
         debug!("update_step: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         let mut messages = Vec::new();
 
         // Parse status if provided
-        let step_status = if let Some(status_str) = &params.status {
+        let step_status = if let Some(status_str) = &inner_params.status {
             Some(match status_str.as_str() {
                 "todo" => StepStatus::Todo,
                 "inprogress" => StepStatus::InProgress,
@@ -904,7 +944,7 @@ impl BeaconMcpServer {
 
         // Validate result requirement for done status
         if let Some(StepStatus::Done) = step_status {
-            if params.result.is_none() {
+            if inner_params.result.is_none() {
                 return Err(ErrorData::internal_error(
                     "Result description is required when marking a step as done. Please provide a 'result' field describing what was accomplished.".to_string(),
                     None,
@@ -915,40 +955,40 @@ impl BeaconMcpServer {
         // Update all fields in a single call
         planner
             .update_step(
-                params.id,
+                inner_params.id,
                 beacon_core::UpdateStepRequest {
-                    title: params.title.clone(),
-                    description: params.description.clone(),
-                    acceptance_criteria: params.acceptance_criteria.clone(),
-                    references: params.references.clone(),
+                    title: inner_params.title.clone(),
+                    description: inner_params.description.clone(),
+                    acceptance_criteria: inner_params.acceptance_criteria.clone(),
+                    references: inner_params.references.clone(),
                     status: step_status,
-                    result: params.result.clone(),
+                    result: inner_params.result.clone(),
                 },
             )
             .await
             .map_err(|e| to_mcp_error("Failed to update step", e))?;
 
         // Build update messages
-        if params.status.is_some() {
-            messages.push(format!("Updated status to '{}'", params.status.unwrap()));
+        if inner_params.status.is_some() {
+            messages.push(format!("Updated status to '{}'", inner_params.status.as_ref().unwrap()));
         }
-        if params.title.is_some() {
+        if inner_params.title.is_some() {
             messages.push("Updated title".to_string());
         }
-        if params.description.is_some() {
+        if inner_params.description.is_some() {
             messages.push("Updated description".to_string());
         }
-        if params.acceptance_criteria.is_some() {
+        if inner_params.acceptance_criteria.is_some() {
             messages.push("Updated acceptance criteria".to_string());
         }
-        if params.references.is_some() {
+        if inner_params.references.is_some() {
             messages.push("Updated references".to_string());
         }
 
         let result = if messages.is_empty() {
             "No updates provided for step".to_string()
         } else {
-            format!("Step {} updated: {}", params.id, messages.join(", "))
+            format!("Step {} updated: {}", inner_params.id, messages.join(", "))
         };
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
@@ -962,12 +1002,13 @@ impl BeaconMcpServer {
         debug!("show_step: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
         let step = planner
-            .get_step(params.id)
+            .get_step(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to get step: {e}"), None))?
             .ok_or_else(|| {
-                ErrorData::internal_error(format!("Step with ID {} not found", params.id), None)
+                ErrorData::internal_error(format!("Step with ID {} not found", inner_params.id), None)
             })?;
 
         let mut result = String::new();
@@ -1027,18 +1068,19 @@ impl BeaconMcpServer {
         debug!("claim_step: {:?}", params);
 
         let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
 
-        match planner.claim_step(params.id).await {
+        match planner.claim_step(inner_params).await {
             Ok(true) => {
                 let message = format!(
                     "Successfully claimed step {} - it is now marked as 'in progress'\n\n<system-reminder>\nLaunch a focused subagent for this step. Once completed, use `update_step` with the detailed results of what was accomplished.\n</system-reminder>",
-                    params.id
+                    inner_params.id
                 );
                 Ok(CallToolResult::success(vec![Content::text(message)]))
             }
             Ok(false) => {
                 // Step was not in todo status, get current status
-                let step = planner.get_step(params.id).await.map_err(|e| {
+                let step = planner.get_step(inner_params).await.map_err(|e| {
                     ErrorData::internal_error(format!("Failed to get step: {e}"), None)
                 })?;
 
@@ -1048,11 +1090,11 @@ impl BeaconMcpServer {
                         StepStatus::Done => "already completed",
                         StepStatus::Todo => "in todo status but could not be claimed",
                     };
-                    let message = format!("Cannot claim step {} - it is {}", params.id, status_str);
+                    let message = format!("Cannot claim step {} - it is {}", inner_params.id, status_str);
                     Ok(CallToolResult::success(vec![Content::text(message)]))
                 } else {
                     Err(ErrorData::internal_error(
-                        format!("Step with ID {} not found", params.id),
+                        format!("Step with ID {} not found", inner_params.id),
                         None,
                     ))
                 }
