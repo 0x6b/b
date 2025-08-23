@@ -23,6 +23,12 @@ use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::{debug, info};
 
+/// Generic parameters for operations requiring just an ID
+#[derive(Debug, Deserialize, JsonSchema)]
+struct IdParams {
+    id: u64,
+}
+
 /// Parameters for creating a plan
 #[derive(Debug, Deserialize, JsonSchema)]
 struct CreatePlanParams {
@@ -38,18 +44,6 @@ struct ListPlansParams {
     archived: bool,
 }
 
-/// Parameters for showing a plan
-#[derive(Debug, Deserialize, JsonSchema)]
-struct ShowPlanParams {
-    id: u64,
-}
-
-/// Parameters for archiving/unarchiving a plan
-#[derive(Debug, Deserialize, JsonSchema)]
-struct PlanIdParams {
-    id: u64,
-}
-
 /// Parameters for searching plans
 #[derive(Debug, Deserialize, JsonSchema)]
 struct SearchPlansParams {
@@ -58,9 +52,9 @@ struct SearchPlansParams {
     archived: bool,
 }
 
-/// Parameters for adding a step
+/// Base parameters for step creation/modification
 #[derive(Debug, Deserialize, JsonSchema)]
-struct AddStepParams {
+struct StepCreateParams {
     plan_id: u64,
     title: String,
     description: Option<String>,
@@ -72,13 +66,9 @@ struct AddStepParams {
 /// Parameters for inserting a step at a specific position
 #[derive(Debug, Deserialize, JsonSchema)]
 struct InsertStepParams {
-    plan_id: u64,
+    #[serde(flatten)]
+    step: StepCreateParams,
     position: u32,
-    title: String,
-    description: Option<String>,
-    acceptance_criteria: Option<String>,
-    #[serde(default)]
-    references: Vec<String>,
 }
 
 /// Parameters for swapping two steps
@@ -123,17 +113,11 @@ struct UpdateStepParams {
     result: Option<String>,
 }
 
-/// Parameters for showing a step
-#[derive(Debug, Deserialize, JsonSchema)]
-struct ShowStepParams {
-    id: u64,
+/// Helper to convert planner errors to MCP errors
+fn to_mcp_error(message: &str, error: beacon_core::PlannerError) -> ErrorData {
+    ErrorData::internal_error(format!("{}: {}", message, error), None)
 }
 
-/// Parameters for claiming a step
-#[derive(Debug, Deserialize, JsonSchema)]
-struct ClaimStepParams {
-    id: u64,
-}
 
 /// Definition of a prompt template
 #[derive(Debug, Clone)]
@@ -190,10 +174,10 @@ description: |
   **Files**: [Key files/directories involved]
 
 acceptance_criteria: |
-  ✓ [Specific measurable outcome]
-  ✓ [Test command and expected result]
-  ✓ [Quality metric to meet]
-  ✓ [Validation check]
+  - [ ] [Specific measurable outcome]
+  - [ ] [Test command and expected result]
+  - [ ] [Quality metric to meet]
+  - [ ] [Validation check]
 
 references: ["file.rs", "docs/api.md", "tests/test.rs"]
 ```
@@ -464,7 +448,7 @@ impl BeaconMcpServer {
                 params.directory.as_deref(),
             )
             .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to create plan: {e}"), None))?;
+            .map_err(|e| to_mcp_error("Failed to create plan", e))?;
 
         let mut result = format!("Created plan: {} (ID: {})", plan.title, plan.id);
         if let Some(desc) = params.description {
@@ -500,7 +484,7 @@ impl BeaconMcpServer {
         let plans = planner
             .list_plans(filter)
             .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to list plans: {e}"), None))?;
+            .map_err(|e| to_mcp_error("Failed to list plans", e))?;
 
         let mut result = String::new();
 
@@ -567,14 +551,14 @@ impl BeaconMcpServer {
         name = "show_plan",
         description = "Display complete details of a specific plan including all its steps, their status (todo/done), descriptions, and acceptance criteria. Use the plan ID to retrieve. Essential for understanding project scope and progress."
     )]
-    async fn show_plan(&self, Parameters(params): Parameters<ShowPlanParams>) -> McpResult {
+    async fn show_plan(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
         debug!("show_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
         let plan = planner
             .get_plan(params.id)
             .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to get plan: {e}"), None))?
+            .map_err(|e| to_mcp_error("Failed to get plan", e))?
             .ok_or_else(|| {
                 ErrorData::internal_error(format!("Plan with ID {} not found", params.id), None)
             })?;
@@ -582,7 +566,7 @@ impl BeaconMcpServer {
         let steps = planner
             .get_steps(params.id)
             .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to get steps: {e}"), None))?;
+            .map_err(|e| to_mcp_error("Failed to get steps", e))?;
 
         let mut result = String::new();
         writeln!(result, "# {}. {}", plan.id, plan.title).unwrap();
@@ -669,7 +653,7 @@ impl BeaconMcpServer {
         name = "archive_plan",
         description = "Archive a completed or inactive plan to hide it from the active list. Archived plans are preserved and can be restored later with unarchive_plan. Use when a project is finished or temporarily on hold."
     )]
-    async fn archive_plan(&self, Parameters(params): Parameters<PlanIdParams>) -> McpResult {
+    async fn archive_plan(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
         debug!("archive_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -689,7 +673,7 @@ impl BeaconMcpServer {
         name = "unarchive_plan",
         description = "Restore an archived plan back to the active list. Use when resuming work on a previously archived project or when you need to reference completed work. The plan and all its steps are preserved exactly as they were."
     )]
-    async fn unarchive_plan(&self, Parameters(params): Parameters<PlanIdParams>) -> McpResult {
+    async fn unarchive_plan(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
         debug!("unarchive_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -778,7 +762,7 @@ impl BeaconMcpServer {
         name = "add_step",
         description = "Add a new step to an existing plan. Requires plan_id and title. Optionally include: description (detailed info), acceptance_criteria (completion requirements), and references (URLs/files). Steps start with 'todo' status and are added at the end of the plan."
     )]
-    async fn add_step(&self, Parameters(params): Parameters<AddStepParams>) -> McpResult {
+    async fn add_step(&self, Parameters(params): Parameters<StepCreateParams>) -> McpResult {
         debug!("add_step: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -823,12 +807,12 @@ impl BeaconMcpServer {
         let planner = self.planner.lock().await;
         let step = planner
             .insert_step(
-                params.plan_id,
+                params.step.plan_id,
                 params.position,
-                &params.title,
-                params.description.as_deref(),
-                params.acceptance_criteria.as_deref(),
-                params.references,
+                &params.step.title,
+                params.step.description.as_deref(),
+                params.step.acceptance_criteria.as_deref(),
+                params.step.references,
             )
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
@@ -837,7 +821,7 @@ impl BeaconMcpServer {
         writeln!(
             result,
             "Inserted step: {} (ID: {}) at position {} in plan {}",
-            step.title, step.id, params.position, params.plan_id
+            step.title, step.id, params.position, params.step.plan_id
         )
         .unwrap();
         if let Some(desc) = &step.description {
@@ -932,15 +916,17 @@ impl BeaconMcpServer {
         planner
             .update_step(
                 params.id,
-                params.title.clone(),
-                params.description.clone(),
-                params.acceptance_criteria.clone(),
-                params.references.clone(),
-                step_status,
-                params.result.clone(),
+                beacon_core::UpdateStepRequest {
+                    title: params.title.clone(),
+                    description: params.description.clone(),
+                    acceptance_criteria: params.acceptance_criteria.clone(),
+                    references: params.references.clone(),
+                    status: step_status,
+                    result: params.result.clone(),
+                },
             )
             .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to update step: {e}"), None))?;
+            .map_err(|e| to_mcp_error("Failed to update step", e))?;
 
         // Build update messages
         if params.status.is_some() {
@@ -972,7 +958,7 @@ impl BeaconMcpServer {
         name = "show_step",
         description = "View detailed information about a specific step including its status, timestamps, description, acceptance criteria, and references. Use when you need to focus on a single step's details rather than the whole plan."
     )]
-    async fn show_step(&self, Parameters(params): Parameters<ShowStepParams>) -> McpResult {
+    async fn show_step(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
         debug!("show_step: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -1037,7 +1023,7 @@ impl BeaconMcpServer {
         name = "claim_step",
         description = "Atomically claim a step by transitioning it from 'todo' to 'inprogress' status. This prevents multiple agents from working on the same task simultaneously. Returns success if the step was claimed, or indicates if the step was already claimed or completed."
     )]
-    async fn claim_step(&self, Parameters(params): Parameters<ClaimStepParams>) -> McpResult {
+    async fn claim_step(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
         debug!("claim_step: {:?}", params);
 
         let planner = self.planner.lock().await;
