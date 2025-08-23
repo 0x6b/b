@@ -1,10 +1,11 @@
 //! Database operations for plans and steps.
 
+use std::env::current_dir;
 use std::path::Path;
 
 use jiff::Timestamp;
 use rusqlite::{params, Connection, OptionalExtension};
-
+use rusqlite::types::Type;
 use crate::{
     error::{PlannerError, Result, ResultExt},
     models::{CompletionFilter, Plan, PlanFilter, PlanStatus, Step, StepStatus, UpdateStepRequest},
@@ -28,12 +29,12 @@ impl Database {
     /// Canonicalize a directory path for search purposes using the same logic
     /// as plan creation
     pub fn canonicalize_directory_for_search(&self, directory: &str) -> Result<String> {
-        let path = std::path::Path::new(directory);
+        let path = Path::new(directory);
         if path.is_absolute() {
             Ok(directory.to_string())
         } else {
             // Convert relative path to absolute
-            let cwd = std::env::current_dir().map_err(|_| PlannerError::InvalidInput {
+            let cwd = current_dir().map_err(|_| PlannerError::InvalidInput {
                 field: "directory".to_string(),
                 reason: "Cannot resolve current working directory to make path absolute"
                     .to_string(),
@@ -54,7 +55,7 @@ impl Database {
 
     /// Normalizes a path by resolving "." and ".." components without requiring
     /// the path to exist
-    fn normalize_path(path: &std::path::Path) -> std::path::PathBuf {
+    fn normalize_path(path: &Path) -> std::path::PathBuf {
         path.components()
             .fold(std::path::PathBuf::new(), |mut acc, component| {
                 match component {
@@ -78,12 +79,12 @@ impl Database {
     fn ensure_absolute_directory(directory: Option<&str>) -> Result<Option<String>> {
         match directory {
             Some(dir) => {
-                let path = std::path::Path::new(dir);
+                let path = Path::new(dir);
                 if path.is_absolute() {
                     Ok(Some(dir.to_string()))
                 } else {
                     // Convert relative path to absolute
-                    let cwd = std::env::current_dir().map_err(|_| PlannerError::InvalidInput {
+                    let cwd = current_dir().map_err(|_| PlannerError::InvalidInput {
                         field: "directory".to_string(),
                         reason: "Cannot resolve current working directory to make path absolute"
                             .to_string(),
@@ -97,7 +98,7 @@ impl Database {
             }
             None => {
                 // Use current working directory as default
-                let cwd = std::env::current_dir().map_err(|_| PlannerError::InvalidInput {
+                let cwd = current_dir().map_err(|_| PlannerError::InvalidInput {
                     field: "directory".to_string(),
                     reason: "Cannot determine current working directory".to_string(),
                 })?;
@@ -211,7 +212,7 @@ impl Database {
                 let status = status_str.parse::<PlanStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         3,
-                        rusqlite::types::Type::Text,
+                        Type::Text,
                         Box::new(std::io::Error::new(
                             std::io::ErrorKind::InvalidData,
                             format!("Invalid plan status: {status_str}"),
@@ -228,14 +229,14 @@ impl Database {
                     created_at: row.get::<_, String>(5)?.parse::<Timestamp>().map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(
                             5,
-                            rusqlite::types::Type::Text,
+                            Type::Text,
                             Box::new(e),
                         )
                     })?,
                     updated_at: row.get::<_, String>(6)?.parse::<Timestamp>().map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(
                             6,
-                            rusqlite::types::Type::Text,
+                            Type::Text,
                             Box::new(e),
                         )
                     })?,
@@ -319,7 +320,7 @@ impl Database {
                 let status = status_str.parse::<PlanStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         3,
-                        rusqlite::types::Type::Text,
+                        Type::Text,
                         Box::new(std::io::Error::new(
                             std::io::ErrorKind::InvalidData,
                             format!("Invalid plan status: {status_str}"),
@@ -340,14 +341,14 @@ impl Database {
                     created_at: row.get::<_, String>(5)?.parse::<Timestamp>().map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(
                             5,
-                            rusqlite::types::Type::Text,
+                            Type::Text,
                             Box::new(e),
                         )
                     })?,
                     updated_at: row.get::<_, String>(6)?.parse::<Timestamp>().map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(
                             6,
-                            rusqlite::types::Type::Text,
+                            Type::Text,
                             Box::new(e),
                         )
                     })?,
@@ -843,7 +844,7 @@ impl Database {
                 let status = status_str.parse::<StepStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         6,
-                        rusqlite::types::Type::Text,
+                        Type::Text,
                         format!("Invalid status: {status_str}").into(),
                     )
                 })?;
@@ -867,7 +868,7 @@ impl Database {
                     created_at: row.get::<_, String>(9)?.parse::<Timestamp>().map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(
                             9,
-                            rusqlite::types::Type::Text,
+                            Type::Text,
                             Box::new(e),
                         )
                     })?,
@@ -877,7 +878,7 @@ impl Database {
                         .map_err(|e| {
                             rusqlite::Error::FromSqlConversionFailure(
                                 10,
-                                rusqlite::types::Type::Text,
+                                Type::Text,
                                 Box::new(e),
                             )
                         })?,
@@ -906,7 +907,7 @@ impl Database {
                 let status = status_str.parse::<StepStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         6,
-                        rusqlite::types::Type::Text,
+                        Type::Text,
                         format!("Invalid status: {status_str}").into(),
                     )
                 })?;
@@ -930,7 +931,7 @@ impl Database {
                     created_at: row.get::<_, String>(9)?.parse::<Timestamp>().map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(
                             9,
-                            rusqlite::types::Type::Text,
+                            Type::Text,
                             Box::new(e),
                         )
                     })?,
@@ -940,7 +941,7 @@ impl Database {
                         .map_err(|e| {
                             rusqlite::Error::FromSqlConversionFailure(
                                 10,
-                                rusqlite::types::Type::Text,
+                                Type::Text,
                                 Box::new(e),
                             )
                         })?,
