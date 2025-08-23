@@ -358,6 +358,31 @@ impl PlanSummary {
     }
 }
 
+impl From<&Plan> for PlanSummary {
+    fn from(plan: &Plan) -> Self {
+        let total_steps = plan.steps.len() as u32;
+        let completed_steps = plan
+            .steps
+            .iter()
+            .filter(|step| step.status == StepStatus::Done)
+            .count() as u32;
+        let pending_steps = total_steps - completed_steps;
+
+        Self {
+            id: plan.id,
+            title: plan.title.clone(),
+            description: plan.description.clone(),
+            status: plan.status,
+            directory: plan.directory.clone(),
+            created_at: plan.created_at,
+            updated_at: plan.updated_at,
+            total_steps,
+            completed_steps,
+            pending_steps,
+        }
+    }
+}
+
 impl fmt::Display for Plan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "# {}. {}", self.id, self.title)?;
@@ -719,5 +744,53 @@ mod tests {
         assert!(todo_pos_output.contains("○ Todo"));
         assert!(in_progress_pos_output.contains("➤ In Progress"));
         assert!(done_pos_output.contains("✓ Done"));
+    }
+
+    #[test]
+    fn test_plan_summary_from_plan_trait() {
+        let plan = create_test_plan();
+        let summary = PlanSummary::from(&plan);
+
+        // Verify basic plan information is copied correctly
+        assert_eq!(summary.id, plan.id);
+        assert_eq!(summary.title, plan.title);
+        assert_eq!(summary.description, plan.description);
+        assert_eq!(summary.status, plan.status);
+        assert_eq!(summary.directory, plan.directory);
+        assert_eq!(summary.created_at, plan.created_at);
+        assert_eq!(summary.updated_at, plan.updated_at);
+
+        // Verify step counts are calculated correctly
+        // The test plan has 3 steps: Done, InProgress, Todo
+        assert_eq!(summary.total_steps, 3);
+        assert_eq!(summary.completed_steps, 1); // Only the Done step
+        assert_eq!(summary.pending_steps, 2); // InProgress + Todo steps
+    }
+
+    #[test]
+    fn test_plan_summary_from_plan_trait_empty_steps() {
+        let mut plan = create_test_plan();
+        plan.steps.clear();
+        let summary = PlanSummary::from(&plan);
+
+        // Verify step counts for empty plan
+        assert_eq!(summary.total_steps, 0);
+        assert_eq!(summary.completed_steps, 0);
+        assert_eq!(summary.pending_steps, 0);
+    }
+
+    #[test]
+    fn test_plan_summary_from_plan_trait_all_completed() {
+        let mut plan = create_test_plan();
+        // Make all steps completed
+        for step in &mut plan.steps {
+            step.status = StepStatus::Done;
+        }
+        let summary = PlanSummary::from(&plan);
+
+        // Verify step counts when all steps are completed
+        assert_eq!(summary.total_steps, 3);
+        assert_eq!(summary.completed_steps, 3);
+        assert_eq!(summary.pending_steps, 0);
     }
 }
