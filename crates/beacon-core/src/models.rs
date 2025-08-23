@@ -31,23 +31,11 @@ impl FromStr for PlanStatus {
 
 impl fmt::Display for PlanStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                PlanStatus::Active => "active",
-                PlanStatus::Archived => "archived",
-            }
-        )
+        write!(f, "{}", self.as_str())
     }
 }
 
 impl PlanStatus {
-    /// Parse a status from a string (for backwards compatibility)
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-
     /// Convert to database string representation (for backwards compatibility)
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -155,24 +143,11 @@ impl FromStr for StepStatus {
 
 impl fmt::Display for StepStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                StepStatus::Todo => "todo",
-                StepStatus::InProgress => "inprogress",
-                StepStatus::Done => "done",
-            }
-        )
+        write!(f, "{}", self.as_str())
     }
 }
 
 impl StepStatus {
-    /// Parse a status from a string (for backwards compatibility)
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-
     /// Convert to database string representation (for backwards compatibility)
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -220,38 +195,58 @@ pub enum CompletionFilter {
     Empty,
 }
 
-/// Summary information about a plan.
+/// Summary information about a plan with step statistics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanSummary {
     /// Plan ID
     pub id: u64,
-
     /// Title of the plan
     pub title: String,
-
     /// Detailed multi-line description of the plan
     pub description: Option<String>,
-
     /// Plan status
     pub status: PlanStatus,
-
     /// Working directory for the plan
     pub directory: Option<String>,
-
     /// Creation timestamp
     pub created_at: Timestamp,
-
     /// Last update timestamp
     pub updated_at: Timestamp,
-
     /// Total number of steps
     pub total_steps: u32,
-
     /// Number of completed steps
     pub completed_steps: u32,
-
     /// Number of pending steps
     pub pending_steps: u32,
+}
+
+/// Parameters for updating a step to reduce function argument count
+#[derive(Debug, Default)]
+pub struct UpdateStepRequest {
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub acceptance_criteria: Option<String>,
+    pub references: Option<Vec<String>>,
+    pub status: Option<StepStatus>,
+    pub result: Option<String>,
+}
+
+impl PlanSummary {
+    /// Create a PlanSummary from a Plan and step counts
+    pub fn from_plan(plan: Plan, total_steps: u32, completed_steps: u32) -> Self {
+        Self {
+            id: plan.id,
+            title: plan.title,
+            description: plan.description,
+            status: plan.status,
+            directory: plan.directory,
+            created_at: plan.created_at,
+            updated_at: plan.updated_at,
+            total_steps,
+            completed_steps,
+            pending_steps: total_steps - completed_steps,
+        }
+    }
 }
 
 impl fmt::Display for Plan {
@@ -394,6 +389,6 @@ impl fmt::Display for PlanSummary {
 }
 
 /// Format datetime for display
-fn format_datetime(dt: &Timestamp) -> String {
-    dt.strftime("%Y-%m-%d %H:%M:%S UTC").to_string()
+fn format_datetime(dt: &Timestamp) -> impl fmt::Display + '_ {
+    dt.strftime("%Y-%m-%d %H:%M:%S UTC")
 }

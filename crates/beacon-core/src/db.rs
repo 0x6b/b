@@ -6,8 +6,8 @@ use jiff::Timestamp;
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::{
-    error::{PlannerError, Result},
-    models::{CompletionFilter, Plan, PlanFilter, PlanStatus, Step, StepStatus},
+    error::{PlannerError, Result, ResultExt},
+    models::{CompletionFilter, Plan, PlanFilter, PlanStatus, Step, StepStatus, UpdateStepRequest},
 };
 
 /// Database connection and operations handler.
@@ -18,8 +18,7 @@ pub struct Database {
 impl Database {
     /// Creates a new database connection and initializes the schema.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let connection = Connection::open(path)
-            .map_err(|e| PlannerError::database_error("Failed to open database connection", e))?;
+        let connection = Connection::open(path).db_err("Failed to open database connection")?;
 
         let db = Self { connection };
         db.initialize_schema()?;
@@ -113,13 +112,13 @@ impl Database {
         // Enable foreign keys for this connection
         self.connection
             .execute("PRAGMA foreign_keys = ON", [])
-            .map_err(|e| PlannerError::database_error("Failed to enable foreign keys", e))?;
+            .db_err("Failed to enable foreign keys")?;
 
         // Execute the schema SQL
         let schema_sql = include_str!("../assets/schema.sql");
         self.connection
             .execute_batch(schema_sql)
-            .map_err(|e| PlannerError::database_error("Failed to initialize database schema", e))?;
+            .db_err("Failed to initialize database schema")?;
 
         // Apply migrations for existing databases
         self.apply_migrations()?;
@@ -209,7 +208,7 @@ impl Database {
         let plan = stmt
             .query_row(params![id as i64], |row| {
                 let status_str: String = row.get(3)?;
-                let status = PlanStatus::parse(&status_str).ok_or_else(|| {
+                let status = status_str.parse::<PlanStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         3,
                         rusqlite::types::Type::Text,
@@ -312,7 +311,7 @@ impl Database {
         let plans_with_counts: Vec<(Plan, i64, i64)> = stmt
             .query_map(&params_refs[..], |row| {
                 let status_str: String = row.get(3)?;
-                let status = PlanStatus::parse(&status_str).ok_or_else(|| {
+                let status = status_str.parse::<PlanStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         3,
                         rusqlite::types::Type::Text,
@@ -684,23 +683,13 @@ impl Database {
         })
     }
 
-    /// Updates step details (title, description, acceptance criteria,
-    /// references, status, and result).
+    /// Updates step details using a request struct to reduce argument count.
     /// When changing status to Done, result is required.
     /// Result is ignored when changing to Todo or InProgress.
-    pub fn update_step(
-        &mut self,
-        step_id: u64,
-        title: Option<String>,
-        description: Option<String>,
-        acceptance_criteria: Option<String>,
-        references: Option<Vec<String>>,
-        status: Option<StepStatus>,
-        result: Option<String>,
-    ) -> Result<()> {
+    pub fn update_step(&mut self, step_id: u64, request: UpdateStepRequest) -> Result<()> {
         // Validate result requirement when changing status to Done
-        if let Some(StepStatus::Done) = status {
-            if result.is_none() {
+        if let Some(StepStatus::Done) = request.status {
+            if request.result.is_none() {
                 return Err(PlannerError::InvalidInput {
                     field: "result".to_string(),
                     reason: "Result description is required when marking a step as done"
@@ -710,12 +699,12 @@ impl Database {
         }
 
         // Check if there's anything to update
-        if title.is_none()
-            && description.is_none()
-            && acceptance_criteria.is_none()
-            && references.is_none()
-            && status.is_none()
-            && result.is_none()
+        if request.title.is_none()
+            && request.description.is_none()
+            && request.acceptance_criteria.is_none()
+            && request.references.is_none()
+            && request.status.is_none()
+            && request.result.is_none()
         {
             return Ok(());
         }
@@ -765,18 +754,18 @@ impl Database {
         };
 
         // Use provided values or keep current ones
-        let new_title = title.unwrap_or(current_title);
-        let new_description = description.or(current_desc);
-        let new_criteria = acceptance_criteria.or(current_criteria);
-        let new_references = references.map(|refs| refs.join(",")).or(current_refs);
-        let new_status_str = status
+        let new_title = request.title.unwrap_or(current_title);
+        let new_description = request.description.or(current_desc);
+        let new_criteria = request.acceptance_criteria.or(current_criteria);
+        let new_references = request.references.map(|refs| refs.join(",")).or(current_refs);
+        let new_status_str = request.status
             .map(|s| s.as_str().to_string())
             .unwrap_or(current_status.clone());
 
         // Determine the result value based on the status change
-        let new_result = if let Some(new_status) = status {
+        let new_result = if let Some(new_status) = request.status {
             match new_status {
-                StepStatus::Done => result, // Use provided result (already validated as required)
+                StepStatus::Done => request.result, // Use provided result (already validated as required)
                 StepStatus::Todo | StepStatus::InProgress => None, /* Clear result for non-done
                                               * statuses */
             }
@@ -830,7 +819,7 @@ impl Database {
         let steps = stmt
             .query_map(params![plan_id as i64], |row| {
                 let status_str: String = row.get(6)?;
-                let status = StepStatus::parse(&status_str).ok_or_else(|| {
+                let status = status_str.parse::<StepStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         6,
                         rusqlite::types::Type::Text,
@@ -893,7 +882,7 @@ impl Database {
         let step = stmt
             .query_row(params![step_id as i64], |row| {
                 let status_str: String = row.get(6)?;
-                let status = StepStatus::parse(&status_str).ok_or_else(|| {
+                let status = status_str.parse::<StepStatus>().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         6,
                         rusqlite::types::Type::Text,

@@ -7,7 +7,7 @@ use tokio::task;
 use crate::{
     db::Database,
     error::{PlannerError, Result},
-    models::{Plan, PlanFilter, Step, StepStatus},
+    models::{Plan, PlanFilter, Step, UpdateStepRequest},
 };
 
 /// Main planner interface for managing plans and steps.
@@ -192,29 +192,12 @@ impl Planner {
 
     /// Updates step details (title, description, acceptance criteria,
     /// references, and/or status).
-    pub async fn update_step(
-        &self,
-        step_id: u64,
-        title: Option<String>,
-        description: Option<String>,
-        acceptance_criteria: Option<String>,
-        references: Option<Vec<String>>,
-        status: Option<StepStatus>,
-        result: Option<String>,
-    ) -> Result<()> {
+    pub async fn update_step(&self, step_id: u64, request: UpdateStepRequest) -> Result<()> {
         let db_path = self.db_path.clone();
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
-            db.update_step(
-                step_id,
-                title,
-                description,
-                acceptance_criteria,
-                references,
-                status,
-                result,
-            )
+            db.update_step(step_id, request)
         })
         .await
         .map_err(|e| PlannerError::Configuration {
