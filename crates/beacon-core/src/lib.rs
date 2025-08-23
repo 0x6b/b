@@ -69,7 +69,7 @@ pub use handlers::{
     handle_update_step,
 };
 pub use models::{
-    format_datetime, CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
+    CompletionFilter, LocalDateTime, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
     UpdateStepRequest,
 };
 pub use params::{

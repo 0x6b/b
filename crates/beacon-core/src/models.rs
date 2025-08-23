@@ -551,8 +551,8 @@ impl fmt::Display for Plan {
         if let Some(dir) = &self.directory {
             writeln!(f, "- Directory: {dir}")?;
         }
-        writeln!(f, "- Created: {}", format_datetime(&self.created_at))?;
-        writeln!(f, "- Updated: {}", format_datetime(&self.updated_at))?;
+        writeln!(f, "- Created: {}", LocalDateTime(&self.created_at))?;
+        writeln!(f, "- Updated: {}", LocalDateTime(&self.updated_at))?;
 
         // Description as a paragraph
         if let Some(desc) = &self.description {
@@ -649,35 +649,118 @@ impl fmt::Display for PlanSummary {
             writeln!(f, "- **Directory**: {dir}")?;
         }
 
-        writeln!(f, "- **Created**: {}", format_datetime(&self.created_at))?;
+        writeln!(f, "- **Created**: {}", LocalDateTime(&self.created_at))?;
         writeln!(f)?; // Add blank line after each plan
 
         Ok(())
     }
 }
 
-/// Format datetime for consistent display across all models using system timezone.
+
+/// A wrapper around `Timestamp` that provides system timezone formatting via the `Display` trait.
 ///
-/// This function provides a standardized timestamp format used throughout
-/// the display system. The format is human-readable and includes the system
-/// timezone information for clarity.
+/// This struct encapsulates a `Timestamp` reference and implements `Display` to format it
+/// in a consistent, human-readable format using the system timezone. It provides an ergonomic
+/// and type-safe approach to timestamp formatting in display contexts.
 ///
 /// # Format
-/// `YYYY-MM-DD HH:MM:SS TZ` (e.g., "2022-01-01 15:30:45 JST")
+///
+/// The display format follows the pattern: `YYYY-MM-DD HH:MM:SS TZ`
+/// - Year, month, and day are zero-padded
+/// - Time is in 24-hour format with zero-padded components
+/// - Timezone abbreviation is included (e.g., UTC, EST, JST)
 ///
 /// # Examples
 ///
 /// ```rust
-/// use beacon_core::format_datetime;
+/// use beacon_core::models::LocalDateTime;
 /// use jiff::Timestamp;
 ///
-/// let timestamp = Timestamp::from_second(1640995200).unwrap();
-/// let formatted = format!("{}", format_datetime(&timestamp));
-/// // Format depends on system timezone, e.g., "2022-01-01 09:00:00 JST"
+/// let timestamp = Timestamp::from_second(1640995200).unwrap(); // 2022-01-01 00:00:00 UTC
+/// let local_dt = LocalDateTime::new(&timestamp);
+/// 
+/// // Display automatically formats using system timezone
+/// println!("Created: {}", local_dt);
+/// // Output (example): "Created: 2022-01-01 09:00:00 JST"
+///
+/// // Can be used in format strings and templates
+/// let message = format!("Plan updated at {}", LocalDateTime::new(&timestamp));
 /// ```
-pub fn format_datetime(dt: &Timestamp) -> impl fmt::Display + '_ {
-    dt.to_zoned(TimeZone::system())
-        .strftime("%Y-%m-%d %H:%M:%S %Z")
+///
+/// # Design Rationale
+///
+/// This wrapper provides several advantages over direct function calls:
+/// - **Type Safety**: Encapsulates formatting logic in a dedicated type
+/// - **Ergonomics**: Integrates seamlessly with `Display` trait usage
+/// - **Consistency**: Ensures uniform timestamp formatting across the application
+/// - **Future-proofing**: Allows format changes without affecting call sites
+///
+/// # Performance
+///
+/// The wrapper is zero-cost at runtime - it only holds a reference to the timestamp
+/// and performs formatting only when `Display::fmt` is called.
+pub struct LocalDateTime<'a>(&'a Timestamp);
+
+impl<'a> LocalDateTime<'a> {
+    /// Create a new `LocalDateTime` wrapper around a timestamp reference.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp` - Reference to the timestamp to wrap for display formatting
+    ///
+    /// # Returns
+    ///
+    /// A new `LocalDateTime` instance that will format the timestamp using
+    /// the system timezone when displayed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use beacon_core::models::LocalDateTime;
+    /// use jiff::Timestamp;
+    ///
+    /// let now = Timestamp::now();
+    /// let local_dt = LocalDateTime::new(&now);
+    /// println!("Current time: {}", local_dt);
+    /// ```
+    pub fn new(timestamp: &'a Timestamp) -> Self {
+        Self(timestamp)
+    }
+}
+
+impl<'a> fmt::Display for LocalDateTime<'a> {
+    /// Format the wrapped timestamp using system timezone in YYYY-MM-DD HH:MM:SS TZ format.
+    ///
+    /// This implementation converts the UTC timestamp to the system timezone and formats it
+    /// in a consistent, human-readable format.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The formatter to write the timestamp string to
+    ///
+    /// # Returns
+    ///
+    /// `fmt::Result` indicating success or failure of the formatting operation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use beacon_core::models::LocalDateTime;
+    /// use jiff::Timestamp;
+    ///
+    /// let timestamp = Timestamp::from_second(1640995200).unwrap();
+    /// let local_dt = LocalDateTime::new(&timestamp);
+    /// 
+    /// // Formats with system timezone
+    /// println!("{}", local_dt); // e.g., "2022-01-01 09:00:00 JST"
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0.to_zoned(TimeZone::system()).strftime("%Y-%m-%d %H:%M:%S %Z")
+        )
+    }
 }
 
 impl From<&crate::params::ListPlans> for PlanFilter {
@@ -1257,5 +1340,68 @@ mod tests {
         assert_eq!(filter.status, Some(PlanStatus::Archived));
         assert_eq!(filter.directory, Some(directory));
         assert!(filter.include_archived);
+    }
+
+    #[test]
+    fn test_local_date_time_new() {
+        let timestamp = Timestamp::from_second(1640995200).unwrap(); // 2022-01-01 00:00:00 UTC
+        let local_dt = LocalDateTime::new(&timestamp);
+        
+        // Verify the wrapper holds the correct timestamp
+        assert_eq!(local_dt.0, &timestamp);
+    }
+
+    #[test]
+    fn test_local_date_time_display_format() {
+        let timestamp = Timestamp::from_second(1640995200).unwrap(); // 2022-01-01 00:00:00 UTC
+        let local_dt = LocalDateTime::new(&timestamp);
+        let output = format!("{}", local_dt);
+        
+        // Should contain date in YYYY-MM-DD format
+        assert!(output.contains("2022-01-01"));
+        // Should contain time components (exact time depends on system timezone)
+        assert!(output.contains(":"));
+        // Should contain timezone info
+        let parts: Vec<&str> = output.split_whitespace().collect();
+        assert_eq!(parts.len(), 3); // Date, Time, Timezone
+        assert_eq!(parts[0], "2022-01-01");
+        assert!(parts[1].contains(":")); // Time has colons
+        assert!(!parts[2].is_empty()); // Timezone is non-empty
+    }
+
+
+    #[test]
+    fn test_local_date_time_different_timestamps() {
+        // Test with different timestamps to ensure formatting works consistently
+        let timestamps = vec![
+            Timestamp::from_second(1640995200).unwrap(), // 2022-01-01 00:00:00 UTC
+            Timestamp::from_second(1672531200).unwrap(), // 2023-01-01 00:00:00 UTC
+            Timestamp::from_second(1704067200).unwrap(), // 2024-01-01 00:00:00 UTC
+        ];
+        
+        for timestamp in timestamps {
+            let local_dt = LocalDateTime::new(&timestamp);
+            let local_dt_output = format!("{}", local_dt);
+            
+            // Each should have the expected format structure
+            let parts: Vec<&str> = local_dt_output.split_whitespace().collect();
+            assert_eq!(parts.len(), 3); // Date, Time, Timezone
+            assert!(parts[1].contains(":")); // Time component
+            assert!(!local_dt_output.is_empty()); // Output should not be empty
+        }
+    }
+
+    #[test] 
+    fn test_local_date_time_lifetime_safety() {
+        // Test that LocalDateTime correctly holds lifetime to timestamp
+        let timestamp = Timestamp::from_second(1640995200).unwrap();
+        let local_dt = LocalDateTime::new(&timestamp);
+        
+        // Should be able to format multiple times
+        let output1 = format!("{}", local_dt);
+        let output2 = format!("{}", local_dt);
+        
+        assert_eq!(output1, output2);
+        assert!(!output1.is_empty());
     }
 }
