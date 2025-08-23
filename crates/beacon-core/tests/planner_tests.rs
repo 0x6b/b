@@ -285,11 +285,11 @@ async fn test_plan_with_steps_retrieval() {
         .await
         .expect("Failed to add step 2");
 
-    // Retrieve plan with steps
+    // Retrieve plan with steps (now eagerly loaded)
     let plan_with_steps = planner
-        .get_plan_with_steps(&beacon_core::params::Id { id: plan.id })
+        .get_plan(&beacon_core::params::Id { id: plan.id })
         .await
-        .expect("Failed to get plan with steps")
+        .expect("Failed to get plan")
         .expect("Plan should exist");
 
     assert_eq!(plan_with_steps.steps.len(), 2);

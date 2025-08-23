@@ -126,6 +126,22 @@ impl Planner {
         })?
     }
 
+    /// Permanently deletes a plan and all its associated steps.
+    /// This operation cannot be undone.
+    pub async fn delete_plan(&self, params: &Id) -> Result<()> {
+        let db_path = self.db_path.clone();
+        let plan_id = params.id;
+
+        task::spawn_blocking(move || {
+            let mut db = Database::new(&db_path)?;
+            db.delete_plan(plan_id)
+        })
+        .await
+        .map_err(|e| PlannerError::Configuration {
+            message: format!("Task join error: {e}"),
+        })?
+    }
+
     /// Adds a new step to the specified plan with optional description,
     /// acceptance criteria and references.
     pub async fn add_step(&self, params: &StepCreate) -> Result<Step> {
@@ -234,26 +250,6 @@ impl Planner {
         task::spawn_blocking(move || {
             let db = Database::new(&db_path)?;
             db.get_step(step_id)
-        })
-        .await
-        .map_err(|e| PlannerError::Configuration {
-            message: format!("Task join error: {e}"),
-        })?
-    }
-
-    /// Retrieves a plan with all its steps.
-    pub async fn get_plan_with_steps(&self, params: &Id) -> Result<Option<Plan>> {
-        let db_path = self.db_path.clone();
-        let plan_id = params.id;
-
-        task::spawn_blocking(move || {
-            let db = Database::new(&db_path)?;
-            if let Some(mut plan) = db.get_plan(plan_id)? {
-                plan.steps = db.get_steps(plan_id)?;
-                Ok(Some(plan))
-            } else {
-                Ok(None)
-            }
         })
         .await
         .map_err(|e| PlannerError::Configuration {
