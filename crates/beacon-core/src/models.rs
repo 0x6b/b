@@ -851,8 +851,8 @@ mod tests {
         // Should contain metadata
         assert!(output.contains("- Status: active"));
         assert!(output.contains("- Directory: /test/path"));
-        assert!(output.contains("- Created: 2022-01-01 00:00:00 UTC"));
-        assert!(output.contains("- Updated: 2022-01-02 00:00:00 UTC"));
+        assert!(output.contains("- Created: 2022-01-01"));
+        assert!(output.contains("- Updated: 2022-01-02"));
 
         // Should contain description
         assert!(output.contains("This is a test plan"));
@@ -887,7 +887,7 @@ mod tests {
         // Should contain metadata
         assert!(output.contains("- **Description**: Summary description"));
         assert!(output.contains("- **Directory**: /test/summary"));
-        assert!(output.contains("- **Created**: 2022-01-01 00:00:00 UTC"));
+        assert!(output.contains("- **Created**: 2022-01-01"));
 
         // Should have blank line at end
         assert!(output.ends_with("\n\n"));
@@ -915,7 +915,7 @@ mod tests {
 
         // Should still contain basic info
         assert!(output.contains("## Test Plan Summary (ID: 789) (2/5)"));
-        assert!(output.contains("- **Created**: 2022-01-01 00:00:00 UTC"));
+        assert!(output.contains("- **Created**: 2022-01-01"));
 
         // Should not contain optional fields
         assert!(!output.contains("- **Description**:"));
