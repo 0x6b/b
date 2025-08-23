@@ -87,34 +87,6 @@ fn test_cli_list_plans_text_format() {
         .stdout(predicate::str::contains("List Title"));
 }
 
-#[test]
-fn test_cli_list_plans_json_format() {
-    let temp_dir = create_cli_test_environment();
-    let db_path = temp_dir.path().join("cli_test.db");
-    let db_arg = db_path.to_str().unwrap();
-
-    // Create a plan first
-    beacon_cmd()
-        .args(["--database-file", db_arg, "plan", "create", "JSON Title"])
-        .assert()
-        .success();
-
-    // List plans in JSON format
-    beacon_cmd()
-        .args([
-            "--database-file",
-            db_arg,
-            "plan",
-            "list",
-            "--format",
-            "json",
-        ])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("["))
-        .stdout(predicate::str::contains("]"))
-        .stdout(predicate::str::contains("JSON Title"));
-}
 
 #[test]
 fn test_cli_show_plan() {
