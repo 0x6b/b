@@ -9,13 +9,10 @@ use std::{fmt::Write, future::Future, sync::Arc};
 use anyhow::Result;
 use beacon_core::{
     display::{format_plan_list, CreateResult, OperationStatus},
-    handlers::{
-        handle_add_step, handle_archive_plan, handle_claim_step, handle_create_plan,
-        handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans,
-        handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan,
-        handle_update_step,
-    },
-    params as core, Planner,
+    handle_add_step, handle_archive_plan, handle_claim_step, handle_create_plan,
+    handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans,
+    handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan,
+    handle_update_step, params as core, Planner,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
@@ -29,8 +26,9 @@ use rmcp::{
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
+use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::Mutex;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 // ============================================================================
 // Generic Parameter Wrapper Implementation
@@ -1004,18 +1002,18 @@ pub async fn run_stdio_server(server: BeaconMcpServer) -> Result<()> {
     );
 
     let service = server.serve(stdio()).await.inspect_err(|e| {
-        tracing::error!("serving error: {e:?}");
+        error!("serving error: {e:?}");
     })?;
 
     // Set up signal handlers for graceful shutdown
-    let mut sigint = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
-    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    let mut sigint = signal(SignalKind::interrupt())?;
+    let mut sigterm = signal(SignalKind::terminate())?;
 
     tokio::select! {
         result = service.waiting() => {
             match result {
                 Ok(_) => info!("MCP server stopped normally"),
-                Err(e) => tracing::error!("MCP server error: {e:?}"),
+                Err(e) => error!("MCP server error: {e:?}"),
             }
         }
         _ = sigint.recv() => {

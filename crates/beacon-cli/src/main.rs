@@ -10,12 +10,7 @@ mod renderer;
 use std::str::FromStr;
 
 use anyhow::{Context, Result};
-use beacon_core::{
-    format_plan_list, handle_add_step, handle_archive_plan, handle_create_plan, handle_delete_plan,
-    handle_insert_step, handle_list_plans, handle_search_plans, handle_show_plan, handle_show_step,
-    handle_swap_steps, handle_unarchive_plan, handle_update_step, CreateResult, OperationStatus,
-    PlannerBuilder, StepStatus, UpdateResult,
-};
+use beacon_core::{format_plan_list, handle_add_step, handle_archive_plan, handle_create_plan, handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans, handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan, handle_update_step, CreatePlan, CreateResult, Id, InsertStep, ListPlans, OperationStatus, Planner, PlannerBuilder, SearchPlans, StepCreate, StepStatus, SwapSteps, UpdateResult, UpdateStep};
 use clap::Parser;
 use cli::{Cli, Commands, PlanCommands, StepCommands};
 use log::{debug, info};
@@ -60,7 +55,7 @@ async fn main() -> Result<()> {
 
 /// Handle plan subcommands
 async fn handle_plan_command(
-    planner: beacon_core::Planner,
+    planner: Planner,
     command: PlanCommands,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -78,7 +73,7 @@ async fn handle_plan_command(
 
 /// Handle step subcommands
 async fn handle_step_command(
-    planner: beacon_core::Planner,
+    planner: Planner,
     command: StepCommands,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -87,7 +82,7 @@ async fn handle_step_command(
         Add(args) => handle_step_add(planner, &args.into(), renderer).await,
         Insert(args) => handle_step_insert(planner, &args.into(), renderer).await,
         Update(args) => {
-            let params: beacon_core::params::UpdateStep = args.into();
+            let params: UpdateStep = args.into();
 
             // Parse status using FromStr implementation
             let status = params.status.as_ref().map(|s| {
@@ -106,8 +101,8 @@ async fn handle_step_command(
 
 /// Handle plan create command
 async fn handle_plan_create(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::CreatePlan,
+    planner: Planner,
+    params: &CreatePlan,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let plan = handle_create_plan(&planner, params)
@@ -122,8 +117,8 @@ async fn handle_plan_create(
 
 /// Handle plan list command
 async fn handle_plan_list(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::ListPlans,
+    planner: Planner,
+    params: &ListPlans,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let plan_summaries = handle_list_plans(&planner, params)
@@ -144,8 +139,8 @@ async fn handle_plan_list(
 
 /// Handle plan show command
 async fn handle_plan_show(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::Id,
+    planner: Planner,
+    params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let plan = handle_show_plan(&planner, params)
@@ -160,8 +155,8 @@ async fn handle_plan_show(
 
 /// Handle plan archive command
 async fn handle_plan_archive(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::Id,
+    planner: Planner,
+    params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let plan = handle_archive_plan(&planner, params)
@@ -192,8 +187,8 @@ async fn handle_plan_archive(
 
 /// Handle plan unarchive command
 async fn handle_plan_unarchive(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::Id,
+    planner: Planner,
+    params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let _plan = handle_unarchive_plan(&planner, params)
@@ -208,7 +203,7 @@ async fn handle_plan_unarchive(
 
 /// Handle plan delete command
 async fn handle_plan_delete(
-    planner: beacon_core::Planner,
+    planner: Planner,
     args: cli::DeletePlanArgs,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -223,7 +218,7 @@ async fn handle_plan_delete(
         return Ok(());
     }
 
-    let params: beacon_core::params::Id = args.into();
+    let params: Id = args.into();
 
     // Get step count before deletion for informative message
     let steps = planner
@@ -257,8 +252,8 @@ async fn handle_plan_delete(
 
 /// Handle plan search command
 async fn handle_plan_search(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::SearchPlans,
+    planner: Planner,
+    params: &SearchPlans,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let plan_summaries = handle_search_plans(&planner, params)
@@ -280,8 +275,8 @@ async fn handle_plan_search(
 
 /// Handle step add command
 async fn handle_step_add(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::StepCreate,
+    planner: Planner,
+    params: &StepCreate,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let step = handle_add_step(&planner, params)
@@ -296,8 +291,8 @@ async fn handle_step_add(
 
 /// Handle step insert command
 async fn handle_step_insert(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::InsertStep,
+    planner: Planner,
+    params: &InsertStep,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let step = handle_insert_step(&planner, params)
@@ -317,8 +312,8 @@ async fn handle_step_insert(
 
 /// Handle step update command
 async fn handle_step_update(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::UpdateStep,
+    planner: Planner,
+    params: &UpdateStep,
     status: Option<StepStatus>,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -375,8 +370,8 @@ async fn handle_step_update(
 
 /// Handle step show command
 async fn handle_step_show(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::Id,
+    planner: Planner,
+    params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let step = handle_show_step(&planner, params)
@@ -391,8 +386,8 @@ async fn handle_step_show(
 
 /// Handle step swap command
 async fn handle_step_swap(
-    planner: beacon_core::Planner,
-    params: &beacon_core::params::SwapSteps,
+    planner: Planner,
+    params: &SwapSteps,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     handle_swap_steps(&planner, params).await.with_context(|| {
@@ -413,7 +408,7 @@ async fn handle_step_swap(
 }
 
 /// Handle serve command (MCP server)
-async fn handle_serve(planner: beacon_core::Planner) -> Result<()> {
+async fn handle_serve(planner: Planner) -> Result<()> {
     info!("Starting Beacon MCP server");
 
     let server = BeaconMcpServer::new(planner);
