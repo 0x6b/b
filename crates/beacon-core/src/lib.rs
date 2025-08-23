@@ -21,37 +21,38 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use beacon_core::{
-//!     format_plan_list,
-//!     models::{PlanStatus, PlanSummary},
-//! };
-//! use jiff::Timestamp;
+//! use beacon_core::{PlannerBuilder, params::CreatePlan};
 //!
-//! // Create a sample plan summary
-//! let plan = PlanSummary {
-//!     id: 1,
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create a planner instance
+//! let planner = PlannerBuilder::new()
+//!     .with_database_path("test.db")
+//!     .build()
+//!     .await?;
+//!
+//! // Create a new plan using planner methods
+//! let create_params = CreatePlan {
 //!     title: "My Project".to_string(),
 //!     description: Some("A test project".to_string()),
-//!     status: PlanStatus::Active,
 //!     directory: Some("/home/user/project".to_string()),
-//!     created_at: Timestamp::now(),
-//!     updated_at: Timestamp::now(),
-//!     total_steps: 5,
-//!     completed_steps: 2,
-//!     pending_steps: 3,
 //! };
-//! let plans = vec![plan];
 //!
-//! // Use helper functions for formatted output
-//! let output = format_plan_list(&plans, Some("My Plans"));
-//! assert!(output.contains("# My Plans"));
-//! assert!(output.contains("My Project"));
+//! let plan = planner.create_plan(&create_params).await?;
+//! println!("Created plan: {}", plan);
+//!
+//! // List plans as summaries
+//! use beacon_core::params::ListPlans;
+//! let plans = planner.list_plans_summary(&ListPlans::default()).await?;
+//! for plan in &plans {
+//!     println!("Plan: {}", plan.title);
+//! }
+//! # Ok(())
+//! # }
 //! ```
 
 pub mod db;
 pub mod display;
 pub mod error;
-pub mod handlers;
 pub mod models;
 pub mod params;
 pub mod planner;
@@ -62,12 +63,6 @@ pub use display::{
     format_plan_list, format_step_list, CreateResult, DeleteResult, OperationStatus, UpdateResult,
 };
 pub use error::{PlannerError, Result};
-pub use handlers::{
-    handle_add_step, handle_archive_plan, handle_claim_step, handle_create_plan,
-    handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans,
-    handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan,
-    handle_update_step,
-};
 pub use models::{
     CompletionFilter, LocalDateTime, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
     UpdateStepRequest,
