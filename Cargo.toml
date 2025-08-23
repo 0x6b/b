@@ -19,8 +19,8 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 thiserror = "2.0.16"
 anyhow = "1.0.99"
-tokio = { version = "1.47.1", features = ["full"] }
-clap = { version = "4.5.45", features = ["derive", "env"] }
+tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros", "sync", "signal"] }
+clap = { version = "4.5.45", features = ["derive"] }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 jiff = { version = "0.2.15", features = ["serde"] }
 xdg = "3.0.0"
@@ -28,6 +28,7 @@ xdg = "3.0.0"
 # Logging
 env_logger = "0.11.8"
 log = "0.4.27"
+tracing = "0.1"
 
 # Testing dependencies
 tempfile = "3.21.0"
@@ -46,6 +47,7 @@ opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+panic = "abort"
 
 [profile.dev]
 opt-level = 0
