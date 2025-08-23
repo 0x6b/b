@@ -132,8 +132,8 @@ async fn test_step_display_consistency() {
     // Both outputs should have the same structure
     assert!(cli_output.contains("Created step with ID:"));
     assert!(direct_output.contains("Created step with ID:"));
-    assert!(cli_output.contains("# Step"));
-    assert!(direct_output.contains("# Step"));
+    assert!(cli_output.contains("### "));
+    assert!(direct_output.contains("### "));
     assert!(cli_output.contains("Test Step"));
     assert!(direct_output.contains("Test Step"));
 }
@@ -364,8 +364,8 @@ async fn test_show_step_consistency() {
     let direct_output = step.to_string();
 
     // Both should have similar structure
-    assert!(cli_output.contains("# Step"));
-    assert!(direct_output.contains("# Step"));
+    assert!(cli_output.contains("### "));
+    assert!(direct_output.contains("### "));
     assert!(cli_output.contains("Show Step Test"));
     assert!(direct_output.contains("Show Step Test"));
     assert!(cli_output.contains("Detailed step description"));

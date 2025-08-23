@@ -380,16 +380,8 @@ impl fmt::Display for Plan {
         if !self.steps.is_empty() {
             writeln!(f, "\n## Steps")?;
             writeln!(f)?;
-            for (index, step) in self.steps.iter().enumerate() {
-                // Pass the position (1-indexed) to the step display
-                write!(
-                    f,
-                    "{}",
-                    StepWithPosition {
-                        step,
-                        position: index + 1
-                    }
-                )?;
+            for step in &self.steps {
+                write!(f, "{}", step)?;
             }
         } else {
             writeln!(f, "\nNo steps in this plan.")?;
@@ -399,39 +391,27 @@ impl fmt::Display for Plan {
     }
 }
 
-/// Internal wrapper to display a step with its position number within a plan.
-///
-/// This wrapper is used internally by [`Plan::fmt`] to display steps with
-/// their position numbers (1-indexed) and provide contextual formatting
-/// that differs from standalone step display.
-///
-/// The formatting includes:
-/// - Position number in the step header
-/// - Compact status display with icons
-/// - Structured sections for description, acceptance criteria, result, and
-///   references
-struct StepWithPosition<'a> {
-    step: &'a Step,
-    position: usize,
-}
-
-impl<'a> fmt::Display for StepWithPosition<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Step {
+    /// Format the step using the clean, compact display format.
+    ///
+    /// This uses the same format whether the step is displayed standalone
+    /// or within a plan context.
+    fn fmt_step(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
             "### {}. {} ({})",
-            self.position,
-            self.step.title,
-            self.step.status.with_icon()
+            self.id,
+            self.title,
+            self.status.with_icon()
         )?;
         writeln!(f)?;
 
-        if let Some(desc) = &self.step.description {
+        if let Some(desc) = &self.description {
             writeln!(f, "{desc}")?;
             writeln!(f)?;
         }
 
-        if let Some(criteria) = &self.step.acceptance_criteria {
+        if let Some(criteria) = &self.acceptance_criteria {
             writeln!(f, "#### Acceptance")?;
             writeln!(f)?;
             writeln!(f, "{criteria}")?;
@@ -439,8 +419,8 @@ impl<'a> fmt::Display for StepWithPosition<'a> {
         }
 
         // Show result only for completed steps
-        if self.step.status == StepStatus::Done {
-            if let Some(result) = &self.step.result {
+        if self.status == StepStatus::Done {
+            if let Some(result) = &self.result {
                 writeln!(f, "#### Result")?;
                 writeln!(f)?;
                 writeln!(f, "{result}")?;
@@ -448,10 +428,10 @@ impl<'a> fmt::Display for StepWithPosition<'a> {
             }
         }
 
-        if !self.step.references.is_empty() {
+        if !self.references.is_empty() {
             writeln!(f, "#### References")?;
             writeln!(f)?;
-            for reference in &self.step.references {
+            for reference in &self.references {
                 writeln!(f, "- {reference}")?;
             }
             writeln!(f)?;
@@ -463,47 +443,7 @@ impl<'a> fmt::Display for StepWithPosition<'a> {
 
 impl fmt::Display for Step {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Enhanced display for Step when used independently
-        writeln!(f, "# Step {} Details", self.id)?;
-        writeln!(f)?;
-        writeln!(f, "Title: {}", self.title)?;
-        writeln!(f, "Status: {}", self.status.with_icon())?;
-        writeln!(f, "Plan ID: {}", self.plan_id)?;
-
-        if let Some(desc) = &self.description {
-            writeln!(f)?;
-            writeln!(f, "## Description")?;
-            writeln!(f, "{}", desc)?;
-        }
-
-        if let Some(criteria) = &self.acceptance_criteria {
-            writeln!(f)?;
-            writeln!(f, "## Acceptance Criteria")?;
-            writeln!(f, "{}", criteria)?;
-        }
-
-        // Show result only for completed steps
-        if self.status == StepStatus::Done {
-            if let Some(result) = &self.result {
-                writeln!(f)?;
-                writeln!(f, "## Result")?;
-                writeln!(f, "{}", result)?;
-            }
-        }
-
-        if !self.references.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "## References")?;
-            for reference in &self.references {
-                writeln!(f, "- {}", reference)?;
-            }
-        }
-
-        writeln!(f)?;
-        writeln!(f, "Created: {}", self.created_at)?;
-        writeln!(f, "Updated: {}", self.updated_at)?;
-
-        Ok(())
+        self.fmt_step(f)
     }
 }
 
@@ -519,14 +459,14 @@ impl fmt::Display for PlanSummary {
         writeln!(f)?;
 
         if let Some(desc) = &self.description {
-            writeln!(f, "- Description: {desc}")?;
+            writeln!(f, "- **Description**: {desc}")?;
         }
 
         if let Some(dir) = &self.directory {
-            writeln!(f, "- Directory: {dir}")?;
+            writeln!(f, "- **Directory**: {dir}")?;
         }
 
-        writeln!(f, "- Created: {}", format_datetime(&self.created_at))?;
+        writeln!(f, "- **Created**: {}", format_datetime(&self.created_at))?;
         writeln!(f)?; // Add blank line after each plan
 
         Ok(())
@@ -626,29 +566,21 @@ mod tests {
         let step = create_test_step(StepStatus::Todo);
         let output = format!("{}", step);
 
-        // Should contain step header and basic info
-        assert!(output.contains("# Step 123 Details"));
-        assert!(output.contains("Title: Test Step Title"));
-        assert!(output.contains("Status: ○ Todo"));
-        assert!(output.contains("Plan ID: 456"));
+        // Should contain step header with ID and status
+        assert!(output.contains("### 123. Test Step Title (○ Todo)"));
 
         // Should contain description and acceptance criteria
-        assert!(output.contains("## Description"));
         assert!(output.contains("This is a test step description"));
-        assert!(output.contains("## Acceptance Criteria"));
+        assert!(output.contains("#### Acceptance"));
         assert!(output.contains("Should pass all tests"));
 
         // Should contain references
-        assert!(output.contains("## References"));
+        assert!(output.contains("#### References"));
         assert!(output.contains("- https://example.com"));
         assert!(output.contains("- file.txt"));
 
-        // Should contain timestamps (ISO format)
-        assert!(output.contains("Created: 2022-01-01T00:00:00Z"));
-        assert!(output.contains("Updated: 2022-01-02T00:00:00Z"));
-
         // Should NOT contain result section for todo steps
-        assert!(!output.contains("## Result"));
+        assert!(!output.contains("#### Result"));
     }
 
     #[test]
@@ -656,8 +588,8 @@ mod tests {
         let step = create_test_step(StepStatus::InProgress);
         let output = format!("{}", step);
 
-        assert!(output.contains("Status: ➤ In Progress"));
-        assert!(!output.contains("## Result"));
+        assert!(output.contains("### 123. Test Step Title (➤ In Progress)"));
+        assert!(!output.contains("#### Result"));
     }
 
     #[test]
@@ -665,27 +597,20 @@ mod tests {
         let step = create_test_step(StepStatus::Done);
         let output = format!("{}", step);
 
-        assert!(output.contains("Status: ✓ Done"));
-        assert!(output.contains("## Result"));
+        assert!(output.contains("### 123. Test Step Title (✓ Done)"));
+        assert!(output.contains("#### Result"));
         assert!(output.contains("Successfully completed the test"));
     }
 
     #[test]
     fn test_step_display_within_plan_context() {
         let step = create_test_step(StepStatus::InProgress);
-        let step_with_position = StepWithPosition {
-            step: &step,
-            position: 3,
-        };
-        let output = format!("{}", step_with_position);
+        let output = format!("{}", step);
 
-        // Should use plan context formatting
-        assert!(output.contains("### 3. Test Step Title (➤ In Progress)"));
+        // Should use consistent formatting with step ID
+        assert!(output.contains("### 123. Test Step Title (➤ In Progress)"));
         assert!(output.contains("#### Acceptance"));
         assert!(output.contains("#### References"));
-
-        // Should NOT contain the independent step header
-        assert!(!output.contains("# Step 123 Details"));
     }
 
     #[test]
@@ -733,9 +658,9 @@ mod tests {
         assert!(output.contains("## Test Plan Summary (ID: 789) (2/5)"));
 
         // Should contain metadata
-        assert!(output.contains("- Description: Summary description"));
-        assert!(output.contains("- Directory: /test/summary"));
-        assert!(output.contains("- Created: 2022-01-01 00:00:00 UTC"));
+        assert!(output.contains("- **Description**: Summary description"));
+        assert!(output.contains("- **Directory**: /test/summary"));
+        assert!(output.contains("- **Created**: 2022-01-01 00:00:00 UTC"));
 
         // Should have blank line at end
         assert!(output.ends_with("\n\n"));
@@ -763,11 +688,11 @@ mod tests {
 
         // Should still contain basic info
         assert!(output.contains("## Test Plan Summary (ID: 789) (2/5)"));
-        assert!(output.contains("- Created: 2022-01-01 00:00:00 UTC"));
+        assert!(output.contains("- **Created**: 2022-01-01 00:00:00 UTC"));
 
         // Should not contain optional fields
-        assert!(!output.contains("- Description:"));
-        assert!(!output.contains("- Directory:"));
+        assert!(!output.contains("- **Description**:"));
+        assert!(!output.contains("- **Directory**:"));
     }
 
     #[test]
@@ -787,22 +712,9 @@ mod tests {
         assert!(done_output.contains("✓ Done"));
 
         // Plan context display
-        let todo_with_pos = StepWithPosition {
-            step: &todo_step,
-            position: 1,
-        };
-        let in_progress_with_pos = StepWithPosition {
-            step: &in_progress_step,
-            position: 2,
-        };
-        let done_with_pos = StepWithPosition {
-            step: &done_step,
-            position: 3,
-        };
-
-        let todo_pos_output = format!("{}", todo_with_pos);
-        let in_progress_pos_output = format!("{}", in_progress_with_pos);
-        let done_pos_output = format!("{}", done_with_pos);
+        let todo_pos_output = format!("{}", todo_step);
+        let in_progress_pos_output = format!("{}", in_progress_step);
+        let done_pos_output = format!("{}", done_step);
 
         assert!(todo_pos_output.contains("○ Todo"));
         assert!(in_progress_pos_output.contains("➤ In Progress"));

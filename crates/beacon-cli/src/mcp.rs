@@ -136,11 +136,11 @@ For each logical unit of work, use `add_step` with the plan_id.
 title: "[Action Verb] [Specific Target]"
 
 description: |
-  **Context**: [Why this step is needed, current state]
-  **Approach**: [How to accomplish this]
-  **Scope**: [What's included/excluded]
-  **Tools/Commands**: [Specific tools or commands to use]
-  **Files**: [Key files/directories involved]
+  - **Context**: [Why this step is needed, current state]
+  - **Approach**: [How to accomplish this]
+  - **Scope**: [What's included/excluded]
+  - **Tools/Commands**: [Specific tools or commands to use]
+  - **Files**: [Key files/directories involved]
 
 acceptance_criteria: |
   - [ ] [Specific measurable outcome]
