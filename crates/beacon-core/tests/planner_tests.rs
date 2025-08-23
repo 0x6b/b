@@ -22,27 +22,49 @@ async fn test_complete_plan_workflow() {
 
     // Create a plan
     let plan = planner
-        .create_plan("Integration Test", Some("Testing complete workflow"), None)
+        .create_plan(&beacon_core::params::CreatePlanParams {
+            title: "Integration Test".to_string(),
+            description: Some("Testing complete workflow".to_string()),
+            directory: None,
+        })
         .await
         .expect("Failed to create plan");
 
     // Add multiple steps
     let step1 = planner
-        .add_step(plan.id, "First step", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "First step".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
     let step2 = planner
-        .add_step(plan.id, "Second step", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Second step".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
     let step3 = planner
-        .add_step(plan.id, "Third step", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Third step".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
 
     // Verify step ordering
     let steps = planner
-        .get_steps(plan.id)
+        .get_steps(&beacon_core::params::IdParams { id: plan.id })
         .await
         .expect("Failed to get steps");
     assert_eq!(steps.len(), 3);
@@ -52,14 +74,14 @@ async fn test_complete_plan_workflow() {
 
     // Test claiming a step
     let claimed = planner
-        .claim_step(step2.id)
+        .claim_step(&beacon_core::params::IdParams { id: step2.id })
         .await
         .expect("Failed to claim step");
     assert!(claimed, "Should successfully claim step2");
 
     // Verify step is in progress
     let steps_after_claim = planner
-        .get_steps(plan.id)
+        .get_steps(&beacon_core::params::IdParams { id: plan.id })
         .await
         .expect("Failed to get steps after claim");
     assert_eq!(steps_after_claim[1].status, StepStatus::InProgress);
@@ -90,7 +112,7 @@ async fn test_complete_plan_workflow() {
 
     // Verify completion status
     let updated_steps = planner
-        .get_steps(plan.id)
+        .get_steps(&beacon_core::params::IdParams { id: plan.id })
         .await
         .expect("Failed to get updated steps");
     assert_eq!(updated_steps[0].status, StepStatus::Done);
@@ -124,12 +146,22 @@ async fn test_database_persistence_across_connections() {
             .expect("Failed to create first planner");
 
         let plan = planner
-            .create_plan("Test Plan", None, None)
+            .create_plan(&beacon_core::params::CreatePlanParams {
+                title: "Test Plan".to_string(),
+                description: None,
+                directory: None,
+            })
             .await
             .expect("Failed to create plan");
 
         planner
-            .add_step(plan.id, "Test step", None, None, Vec::new())
+            .add_step(&beacon_core::params::StepCreateParams {
+                plan_id: plan.id,
+                title: "Test step".to_string(),
+                description: None,
+                acceptance_criteria: None,
+                references: Vec::new(),
+            })
             .await
             .expect("Failed to add step");
 
@@ -145,7 +177,7 @@ async fn test_database_persistence_across_connections() {
 
     // Verify data persisted
     let retrieved_plan = planner
-        .get_plan(plan_id)
+        .get_plan(&beacon_core::params::IdParams { id: plan_id })
         .await
         .expect("Failed to retrieve plan")
         .expect("Plan should exist");
@@ -153,7 +185,7 @@ async fn test_database_persistence_across_connections() {
     assert_eq!(retrieved_plan.title, "Test Plan");
 
     let steps = planner
-        .get_steps(plan_id)
+        .get_steps(&beacon_core::params::IdParams { id: plan_id })
         .await
         .expect("Failed to get steps");
     assert_eq!(steps.len(), 1);
@@ -172,17 +204,23 @@ async fn test_error_handling_invalid_operations() {
 
     // Test operations on non-existent plan
     let result = planner
-        .get_plan(999)
+        .get_plan(&beacon_core::params::IdParams { id: 999 })
         .await
         .expect("Failed to query non-existent plan");
     assert!(result.is_none());
 
     let result = planner
-        .add_step(999, "Invalid step", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: 999,
+            title: "Invalid step".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await;
     assert!(result.is_err());
 
-    let result = planner.archive_plan(999).await;
+    let result = planner.archive_plan(&beacon_core::params::IdParams { id: 999 }).await;
     assert!(result.is_err());
 
     // Test operations on non-existent step
@@ -198,7 +236,7 @@ async fn test_error_handling_invalid_operations() {
         .await;
     assert!(result.is_err());
 
-    let result = planner.remove_step(999).await;
+    let result = planner.remove_step(&beacon_core::params::IdParams { id: 999 }).await;
     assert!(result.is_err());
 }
 
@@ -214,22 +252,38 @@ async fn test_plan_with_steps_retrieval() {
 
     // Create a plan with steps
     let plan = planner
-        .create_plan("Test Plan", Some("Testing step retrieval"), None)
+        .create_plan(&beacon_core::params::CreatePlanParams {
+            title: "Test Plan".to_string(),
+            description: Some("Testing step retrieval".to_string()),
+            directory: None,
+        })
         .await
         .expect("Failed to create plan");
 
     planner
-        .add_step(plan.id, "Step 1", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Step 1".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step 1");
     planner
-        .add_step(plan.id, "Step 2", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Step 2".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step 2");
 
     // Retrieve plan with steps
     let plan_with_steps = planner
-        .get_plan_with_steps(plan.id)
+        .get_plan_with_steps(&beacon_core::params::IdParams { id: plan.id })
         .await
         .expect("Failed to get plan with steps")
         .expect("Plan should exist");
@@ -250,32 +304,54 @@ async fn test_step_removal() {
         .expect("Failed to create planner");
 
     let plan = planner
-        .create_plan("Step Test", None, None)
+        .create_plan(&beacon_core::params::CreatePlanParams {
+            title: "Step Test".to_string(),
+            description: None,
+            directory: None,
+        })
         .await
         .expect("Failed to create plan");
 
     let step1 = planner
-        .add_step(plan.id, "Step to keep", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Step to keep".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
     let step2 = planner
-        .add_step(plan.id, "Step to remove", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Step to remove".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
     let step3 = planner
-        .add_step(plan.id, "Another step to keep", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Another step to keep".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
 
     // Remove the middle step
     planner
-        .remove_step(step2.id)
+        .remove_step(&beacon_core::params::IdParams { id: step2.id })
         .await
         .expect("Failed to remove step");
 
     // Verify remaining steps
     let steps = planner
-        .get_steps(plan.id)
+        .get_steps(&beacon_core::params::IdParams { id: plan.id })
         .await
         .expect("Failed to get steps");
     assert_eq!(steps.len(), 2);
@@ -294,23 +370,39 @@ async fn test_plan_archiving() {
         .expect("Failed to create planner");
 
     let plan = planner
-        .create_plan("Archive Test", None, None)
+        .create_plan(&beacon_core::params::CreatePlanParams {
+            title: "Archive Test".to_string(),
+            description: None,
+            directory: None,
+        })
         .await
         .expect("Failed to create plan");
 
     // Add steps
     planner
-        .add_step(plan.id, "Step 1", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Step 1".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
     planner
-        .add_step(plan.id, "Step 2", None, None, Vec::new())
+        .add_step(&beacon_core::params::StepCreateParams {
+            plan_id: plan.id,
+            title: "Step 2".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: Vec::new(),
+        })
         .await
         .expect("Failed to add step");
 
     // Archive the plan
     planner
-        .archive_plan(plan.id)
+        .archive_plan(&beacon_core::params::IdParams { id: plan.id })
         .await
         .expect("Failed to archive plan");
 
@@ -334,7 +426,7 @@ async fn test_plan_archiving() {
 
     // Verify steps are still there
     let steps = planner
-        .get_steps(plan.id)
+        .get_steps(&beacon_core::params::IdParams { id: plan.id })
         .await
         .expect("Query should succeed");
     assert_eq!(steps.len(), 2);
