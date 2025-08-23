@@ -1,6 +1,6 @@
 # Beacon
 
-A command-line task planning tool for my own use.
+A command-line task planning tool with a clean Display-based architecture for consistent formatting across CLI and MCP interfaces.
 
 ## Installation
 
