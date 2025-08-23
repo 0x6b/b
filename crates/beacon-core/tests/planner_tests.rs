@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use beacon_core::{CompletionFilter, PlanFilter, PlannerBuilder, StepStatus};
+use beacon_core::{CompletionFilter, PlanFilter, PlannerBuilder, StepStatus, UpdateStepRequest};
 use tempfile::TempDir;
 
 /// Helper function to create a temporary directory and database path
@@ -68,24 +68,22 @@ async fn test_complete_plan_workflow() {
     planner
         .update_step(
             step1.id,
-            None,
-            None,
-            None,
-            None,
-            Some(StepStatus::Done),
-            Some("First step completed".to_string()),
+            UpdateStepRequest {
+                status: Some(StepStatus::Done),
+                result: Some("First step completed".to_string()),
+                ..Default::default()
+            },
         )
         .await
         .expect("Failed to update step");
     planner
         .update_step(
             step3.id,
-            None,
-            None,
-            None,
-            None,
-            Some(StepStatus::Done),
-            Some("Third step completed".to_string()),
+            UpdateStepRequest {
+                status: Some(StepStatus::Done),
+                result: Some("Third step completed".to_string()),
+                ..Default::default()
+            },
         )
         .await
         .expect("Failed to update step");
@@ -191,12 +189,11 @@ async fn test_error_handling_invalid_operations() {
     let result = planner
         .update_step(
             999,
-            None,
-            None,
-            None,
-            None,
-            Some(StepStatus::Done),
-            Some("Test result".to_string()),
+            UpdateStepRequest {
+                status: Some(StepStatus::Done),
+                result: Some("Test result".to_string()),
+                ..Default::default()
+            },
         )
         .await;
     assert!(result.is_err());

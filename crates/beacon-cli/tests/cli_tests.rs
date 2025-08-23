@@ -727,8 +727,8 @@ fn extract_id_from_output(output: &str) -> String {
     // Try new format: look for "# <number>. " pattern
     // Skip "# Plan Created" and similar headers
     for line in output.lines() {
-        if line.starts_with("# ") {
-            let after_hash = &line[2..].trim();
+        if let Some(stripped) = line.strip_prefix("# ") {
+            let after_hash = &stripped.trim();
             // Check if this line starts with a number followed by a dot
             if let Some(dot_pos) = after_hash.find('.') {
                 let potential_id = &after_hash[..dot_pos];

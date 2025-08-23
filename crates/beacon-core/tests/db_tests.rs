@@ -1,4 +1,4 @@
-use beacon_core::{Database, PlannerError, StepStatus};
+use beacon_core::{Database, PlannerError, StepStatus, UpdateStepRequest};
 use tempfile::NamedTempFile;
 
 /// Helper function to create a temporary database for testing
@@ -96,12 +96,10 @@ fn test_update_step_status() {
     // Test updating to InProgress
     db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::InProgress),
-        None, // No result needed for InProgress
+        UpdateStepRequest {
+            status: Some(StepStatus::InProgress),
+            ..Default::default()
+        },
     )
     .expect("Failed to update status to InProgress");
 
@@ -111,12 +109,11 @@ fn test_update_step_status() {
     // Test updating to Done
     db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::Done),
-        Some("Task completed successfully".to_string()), // Result required for Done
+        UpdateStepRequest {
+            status: Some(StepStatus::Done),
+            result: Some("Task completed successfully".to_string()),
+            ..Default::default()
+        },
     )
     .expect("Failed to update status to Done");
 
@@ -154,12 +151,11 @@ fn test_claim_step() {
     // Test claiming a done step - should fail
     db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::Done),
-        Some("Step marked as done for testing".to_string()), // Result required
+        UpdateStepRequest {
+            status: Some(StepStatus::Done),
+            result: Some("Step marked as done for testing".to_string()),
+            ..Default::default()
+        },
     )
     .expect("Failed to update status");
     let claimed_done = db.claim_step(step.id).expect("Failed to claim step");
@@ -610,12 +606,11 @@ fn test_update_step_to_done_requires_result() {
     // Try to mark step as done without result
     let result = db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::Done),
-        None, // No result provided
+        UpdateStepRequest {
+            status: Some(StepStatus::Done),
+            result: None, // No result provided
+            ..Default::default()
+        },
     );
 
     assert!(result.is_err());
@@ -630,12 +625,11 @@ fn test_update_step_to_done_requires_result() {
     // Now mark as done with result
     let result = db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::Done),
-        Some("Successfully completed the test step".to_string()),
+        UpdateStepRequest {
+            status: Some(StepStatus::Done),
+            result: Some("Successfully completed the test step".to_string()),
+            ..Default::default()
+        },
     );
     assert!(result.is_ok());
 
@@ -666,12 +660,11 @@ fn test_update_step_result_ignored_for_non_done_status() {
     // Update to in-progress with result (should be ignored)
     db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::InProgress),
-        Some("This should be ignored".to_string()),
+        UpdateStepRequest {
+            status: Some(StepStatus::InProgress),
+            result: Some("This should be ignored".to_string()),
+            ..Default::default()
+        },
     )
     .expect("Failed to update step");
 
@@ -685,12 +678,11 @@ fn test_update_step_result_ignored_for_non_done_status() {
     // Mark as done with result
     db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::Done),
-        Some("Completed successfully".to_string()),
+        UpdateStepRequest {
+            status: Some(StepStatus::Done),
+            result: Some("Completed successfully".to_string()),
+            ..Default::default()
+        },
     )
     .expect("Failed to update step");
 
@@ -707,12 +699,11 @@ fn test_update_step_result_ignored_for_non_done_status() {
     // Change back to todo (result should be cleared)
     db.update_step(
         step.id,
-        None,
-        None,
-        None,
-        None,
-        Some(StepStatus::Todo),
-        Some("This should also be ignored".to_string()),
+        UpdateStepRequest {
+            status: Some(StepStatus::Todo),
+            result: Some("This should also be ignored".to_string()),
+            ..Default::default()
+        },
     )
     .expect("Failed to update step");
 
