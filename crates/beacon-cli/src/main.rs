@@ -72,10 +72,11 @@ async fn main() -> Result<()> {
     info!("Beacon started");
 
     // Dispatch to command handlers
+    use Commands::*;
     match cli.command {
-        Commands::Plan { command } => handle_plan_command(planner, command, cli.format, &renderer).await,
-        Commands::Step { command } => handle_step_command(planner, command, cli.format, &renderer).await,
-        Commands::Serve => handle_serve(planner).await,
+        Plan { command } => handle_plan_command(planner, command, cli.format, &renderer).await,
+        Step { command } => handle_step_command(planner, command, cli.format, &renderer).await,
+        Serve => handle_serve(planner).await,
     }
 }
 
@@ -86,36 +87,14 @@ async fn handle_plan_command(
     format: OutputFormat,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
+    use PlanCommands::*;
     match command {
-        PlanCommands::Create(args) => {
-            let params: beacon_core::params::CreatePlanParams = args.into();
-            handle_plan_create(
-                planner,
-                &params,
-                renderer,
-            )
-            .await
-        }
-        PlanCommands::List(args) => {
-            let params: beacon_core::params::ListPlansParams = args.into();
-            handle_plan_list(planner, &params, format, renderer).await
-        }
-        PlanCommands::Show(args) => {
-            let params: beacon_core::params::IdParams = args.into();
-            handle_plan_show(planner, &params, format, renderer).await
-        }
-        PlanCommands::Archive(args) => {
-            let params: beacon_core::params::IdParams = args.into();
-            handle_plan_archive(planner, &params, renderer).await
-        }
-        PlanCommands::Unarchive(args) => {
-            let params: beacon_core::params::IdParams = args.into();
-            handle_plan_unarchive(planner, &params, renderer).await
-        }
-        PlanCommands::Search(args) => {
-            let params: beacon_core::params::SearchPlansParams = args.into();
-            handle_plan_search(planner, &params, format, renderer).await
-        }
+        Create(args) => handle_plan_create(planner, &args.into(), renderer).await,
+        List(args) => handle_plan_list(planner, &args.into(), format, renderer).await,
+        Show(args) => handle_plan_show(planner, &args.into(), format, renderer).await,
+        Archive(args) => handle_plan_archive(planner, &args.into(), renderer).await,
+        Unarchive(args) => handle_plan_unarchive(planner, &args.into(), renderer).await,
+        Search(args) => handle_plan_search(planner, &args.into(), format, renderer).await,
     }
 }
 
@@ -126,28 +105,13 @@ async fn handle_step_command(
     format: OutputFormat,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
+    use StepCommands::*;
     match command {
-        StepCommands::Add(args) => {
-            let params: beacon_core::params::StepCreateParams = args.into();
-            handle_step_add(
-                planner,
-                &params,
-                renderer,
-            )
-            .await
-        }
-        StepCommands::Insert(args) => {
-            let params: beacon_core::params::InsertStepParams = args.into();
-            handle_step_insert(
-                planner,
-                &params,
-                renderer,
-            )
-            .await
-        }
-        StepCommands::Update(args) => {
-            let params: beacon_core::params::UpdateStepParams = args.into();
-            
+        Add(args) => handle_step_add(planner, &args.into(), renderer).await,
+        Insert(args) => handle_step_insert(planner, &args.into(), renderer).await,
+        Update(args) => {
+            let params: beacon_core::params::UpdateStep = args.into();
+
             // Convert status string back to StepStatus enum for the handler
             let status = params.status.as_ref().map(|s| match s.as_str() {
                 "todo" => StepStatus::Todo,
@@ -155,30 +119,18 @@ async fn handle_step_command(
                 "done" => StepStatus::Done,
                 _ => StepStatus::Todo, // Default fallback
             });
-            
-            handle_step_update(
-                planner,
-                &params,
-                status,
-                renderer,
-            )
-            .await
+
+            handle_step_update(planner, &params, status, renderer).await
         }
-        StepCommands::Show(args) => {
-            let params: beacon_core::params::IdParams = args.into();
-            handle_step_show(planner, &params, format, renderer).await
-        }
-        StepCommands::Swap(args) => {
-            let params: beacon_core::params::SwapStepsParams = args.into();
-            handle_step_swap(planner, &params, renderer).await
-        }
+        Show(args) => handle_step_show(planner, &args.into(), format, renderer).await,
+        Swap(args) => handle_step_swap(planner, &args.into(), renderer).await,
     }
 }
 
 /// Handle plan create command
 async fn handle_plan_create(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::CreatePlanParams,
+    params: &beacon_core::params::CreatePlan,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let plan = planner
@@ -195,7 +147,7 @@ async fn handle_plan_create(
 /// Handle plan list command
 async fn handle_plan_list(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::ListPlansParams,
+    params: &beacon_core::params::ListPlans,
     format: OutputFormat,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -235,7 +187,7 @@ async fn handle_plan_list(
 
                 for plan in plans {
                     let steps = planner
-                        .get_steps(&beacon_core::params::IdParams { id: plan.id })
+                        .get_steps(&beacon_core::params::Id { id: plan.id })
                         .await
                         .context("Failed to get steps for plan")?;
 
@@ -245,7 +197,8 @@ async fn handle_plan_list(
                         .count() as u32;
                     let total_steps = steps.len() as u32;
 
-                    let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
+                    let plan_summary =
+                        beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
 
                     result.push_str(&format!("{plan_summary}"));
                 }
@@ -259,7 +212,7 @@ async fn handle_plan_list(
 
             for plan in plans {
                 let steps = planner
-                    .get_steps(&beacon_core::params::IdParams { id: plan.id })
+                    .get_steps(&beacon_core::params::Id { id: plan.id })
                     .await
                     .context("Failed to get steps for plan")?;
 
@@ -286,7 +239,7 @@ async fn handle_plan_list(
 /// Handle plan show command
 async fn handle_plan_show(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::IdParams,
+    params: &beacon_core::params::Id,
     format: OutputFormat,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -296,7 +249,10 @@ async fn handle_plan_show(
         .context("Failed to get plan")?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
 
-    plan.steps = planner.get_steps(params).await.context("Failed to get steps")?;
+    plan.steps = planner
+        .get_steps(params)
+        .await
+        .context("Failed to get steps")?;
 
     match format {
         OutputFormat::Text => renderer.render(&format!("{plan}"))?,
@@ -309,7 +265,7 @@ async fn handle_plan_show(
 /// Handle plan archive command
 async fn handle_plan_archive(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::IdParams,
+    params: &beacon_core::params::Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     // Get plan details for confirmation
@@ -319,7 +275,10 @@ async fn handle_plan_archive(
         .context("Failed to get plan")?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
 
-    let steps = planner.get_steps(params).await.context("Failed to get steps")?;
+    let steps = planner
+        .get_steps(params)
+        .await
+        .context("Failed to get steps")?;
 
     // Show what will be archived
     let mut markdown = format!("Plan to archive: {} (ID: {})", plan.title, params.id);
@@ -332,9 +291,13 @@ async fn handle_plan_archive(
         .await
         .with_context(|| format!("Failed to archive plan {}", params.id))?;
 
-    markdown.push_str(&format!("\n\nArchived plan: {} (ID: {})", plan.title, params.id));
     markdown.push_str(&format!(
-        "\nUse 'beacon plan unarchive {}' to restore this plan.", params.id
+        "\n\nArchived plan: {} (ID: {})",
+        plan.title, params.id
+    ));
+    markdown.push_str(&format!(
+        "\nUse 'beacon plan unarchive {}' to restore this plan.",
+        params.id
     ));
 
     renderer.render(&markdown)?;
@@ -344,7 +307,7 @@ async fn handle_plan_archive(
 /// Handle plan unarchive command
 async fn handle_plan_unarchive(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::IdParams,
+    params: &beacon_core::params::Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     planner
@@ -360,7 +323,7 @@ async fn handle_plan_unarchive(
 /// Handle plan search command
 async fn handle_plan_search(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::SearchPlansParams,
+    params: &beacon_core::params::SearchPlans,
     format: OutputFormat,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -384,18 +347,26 @@ async fn handle_plan_search(
 
     match format {
         OutputFormat::Text => {
-            let status_text = if params.archived { "archived" } else { "active" };
+            let status_text = if params.archived {
+                "archived"
+            } else {
+                "active"
+            };
             let markdown = if plans.is_empty() {
-                format!("# No {} plans found in directory: {}", status_text, params.directory)
+                format!(
+                    "# No {} plans found in directory: {}",
+                    status_text, params.directory
+                )
             } else {
                 let mut result = format!(
                     "# {} plans in directory: {}\n\n",
-                    status_text.to_uppercase(), params.directory
+                    status_text.to_uppercase(),
+                    params.directory
                 );
 
                 for plan in plans {
                     let steps = planner
-                        .get_steps(&beacon_core::params::IdParams { id: plan.id })
+                        .get_steps(&beacon_core::params::Id { id: plan.id })
                         .await
                         .context("Failed to get steps for plan")?;
 
@@ -405,7 +376,8 @@ async fn handle_plan_search(
                         .count() as u32;
                     let total_steps = steps.len() as u32;
 
-                    let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
+                    let plan_summary =
+                        beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
 
                     result.push_str(&format!("{plan_summary}"));
                 }
@@ -419,7 +391,7 @@ async fn handle_plan_search(
 
             for plan in plans {
                 let steps = planner
-                    .get_steps(&beacon_core::params::IdParams { id: plan.id })
+                    .get_steps(&beacon_core::params::Id { id: plan.id })
                     .await
                     .context("Failed to get steps for plan")?;
 
@@ -446,7 +418,7 @@ async fn handle_plan_search(
 /// Handle step add command
 async fn handle_step_add(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::StepCreateParams,
+    params: &beacon_core::params::StepCreate,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let step = planner
@@ -476,15 +448,15 @@ async fn handle_step_add(
 /// Handle step insert command
 async fn handle_step_insert(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::InsertStepParams,
+    params: &beacon_core::params::InsertStep,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let step = planner
-        .insert_step(params)
-        .await
-        .with_context(|| {
-            format!("Failed to insert step into plan {} at position {}", params.step.plan_id, params.position)
-        })?;
+    let step = planner.insert_step(params).await.with_context(|| {
+        format!(
+            "Failed to insert step into plan {} at position {}",
+            params.step.plan_id, params.position
+        )
+    })?;
 
     let mut markdown = format!(
         "Inserted step: {} (ID: {})\nInserted at position: {} in plan: {}",
@@ -508,7 +480,7 @@ async fn handle_step_insert(
 /// Handle step update command
 async fn handle_step_update(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::UpdateStepParams,
+    params: &beacon_core::params::UpdateStep,
     status: Option<StepStatus>,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -587,7 +559,7 @@ async fn handle_step_update(
 /// Handle step show command
 async fn handle_step_show(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::IdParams,
+    params: &beacon_core::params::Id,
     format: OutputFormat,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
@@ -655,15 +627,20 @@ async fn handle_step_show(
 /// Handle step swap command
 async fn handle_step_swap(
     planner: beacon_core::Planner,
-    params: &beacon_core::params::SwapStepsParams,
+    params: &beacon_core::params::SwapSteps,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    planner
-        .swap_steps(params)
-        .await
-        .with_context(|| format!("Failed to swap steps {} and {}", params.step1_id, params.step2_id))?;
+    planner.swap_steps(params).await.with_context(|| {
+        format!(
+            "Failed to swap steps {} and {}",
+            params.step1_id, params.step2_id
+        )
+    })?;
 
-    let markdown = format!("Swapped order of steps {} and {}", params.step1_id, params.step2_id);
+    let markdown = format!(
+        "Swapped order of steps {} and {}",
+        params.step1_id, params.step2_id
+    );
     renderer.render(&markdown)?;
 
     Ok(())
