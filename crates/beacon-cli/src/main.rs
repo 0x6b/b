@@ -11,9 +11,7 @@ use std::str::FromStr;
 
 use anyhow::{Context, Result};
 use beacon_core::{
-    format_plan_list, handle_add_step, handle_archive_plan, handle_create_plan, handle_delete_plan,
-    handle_insert_step, handle_list_plans, handle_search_plans, handle_show_plan, handle_show_step,
-    handle_swap_steps, handle_unarchive_plan, handle_update_step, CreatePlan, CreateResult, Id,
+    format_plan_list, CreatePlan, CreateResult, Id,
     InsertStep, ListPlans, OperationStatus, Planner, PlannerBuilder, SearchPlans, StepCreate,
     StepStatus, SwapSteps, UpdateResult, UpdateStep,
 };
@@ -111,7 +109,7 @@ async fn handle_plan_create(
     params: &CreatePlan,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let plan = handle_create_plan(&planner, params)
+    let plan = planner.create_plan_result(params)
         .await
         .context("Failed to create plan")?;
 
@@ -127,7 +125,7 @@ async fn handle_plan_list(
     params: &ListPlans,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let plan_summaries = handle_list_plans(&planner, params)
+    let plan_summaries = planner.list_plans_summary(params)
         .await
         .context("Failed to list plans")?;
 
@@ -149,7 +147,7 @@ async fn handle_plan_show(
     params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let plan = handle_show_plan(&planner, params)
+    let plan = planner.show_plan_with_steps(params)
         .await
         .context("Failed to get plan")?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
@@ -165,7 +163,7 @@ async fn handle_plan_archive(
     params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let plan = handle_archive_plan(&planner, params)
+    let plan = planner.archive_plan_with_confirmation(params)
         .await
         .with_context(|| format!("Failed to archive plan {}", params.id))?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
@@ -197,7 +195,7 @@ async fn handle_plan_unarchive(
     params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let _plan = handle_unarchive_plan(&planner, params)
+    let _plan = planner.unarchive_plan_with_confirmation(params)
         .await
         .with_context(|| format!("Failed to unarchive plan {}", params.id))?;
 
@@ -232,7 +230,7 @@ async fn handle_plan_delete(
         .await
         .with_context(|| format!("Failed to get steps for plan {}", params.id))?;
 
-    let plan = handle_delete_plan(&planner, &params)
+    let plan = planner.delete_plan_with_confirmation(&params)
         .await
         .with_context(|| format!("Failed to delete plan {}", params.id))?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
@@ -262,7 +260,7 @@ async fn handle_plan_search(
     params: &SearchPlans,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let plan_summaries = handle_search_plans(&planner, params)
+    let plan_summaries = planner.search_plans_summary(params)
         .await
         .context("Failed to search plans")?;
 
@@ -285,7 +283,7 @@ async fn handle_step_add(
     params: &StepCreate,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let step = handle_add_step(&planner, params)
+    let step = planner.add_step_to_plan(params)
         .await
         .with_context(|| format!("Failed to add step to plan {}", params.plan_id))?;
 
@@ -301,7 +299,7 @@ async fn handle_step_insert(
     params: &InsertStep,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let step = handle_insert_step(&planner, params)
+    let step = planner.insert_step_to_plan(params)
         .await
         .with_context(|| {
             format!(
@@ -363,7 +361,7 @@ async fn handle_step_update(
         changes.push("references".to_string());
     }
 
-    let updated_step = handle_update_step(&planner, params)
+    let updated_step = planner.update_step_validated(params)
         .await
         .with_context(|| format!("Failed to update step {}", params.id))?
         .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
@@ -380,7 +378,7 @@ async fn handle_step_show(
     params: &Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let step = handle_show_step(&planner, params)
+    let step = planner.show_step_details(params)
         .await
         .context("Failed to get step")?
         .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
@@ -396,7 +394,7 @@ async fn handle_step_swap(
     params: &SwapSteps,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    handle_swap_steps(&planner, params).await.with_context(|| {
+    planner.swap_step_positions(params).await.with_context(|| {
         format!(
             "Failed to swap steps {} and {}",
             params.step1_id, params.step2_id

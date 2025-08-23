@@ -9,10 +9,7 @@ use std::{fmt::Write, future::Future, sync::Arc};
 use anyhow::Result;
 use beacon_core::{
     display::{format_plan_list, CreateResult, OperationStatus},
-    handle_add_step, handle_archive_plan, handle_claim_step, handle_create_plan,
-    handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans,
-    handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan,
-    handle_update_step, params as core, Planner,
+    params as core, Planner,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
@@ -415,7 +412,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let plan = handle_create_plan(&planner, inner_params)
+        let plan = planner.create_plan_result(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to create plan", e))?;
 
@@ -434,7 +431,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let plan_summaries = handle_list_plans(&planner, inner_params)
+        let plan_summaries = planner.list_plans_summary(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to list plans", e))?;
 
@@ -466,7 +463,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let plan = handle_show_plan(&planner, inner_params)
+        let plan = planner.show_plan_with_steps(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to get plan", e))?
             .ok_or_else(|| {
@@ -490,7 +487,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let _archived_plan = handle_archive_plan(&planner, inner_params)
+        let _archived_plan = planner.archive_plan_with_confirmation(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to archive plan: {e}"), None))?
             .ok_or_else(|| {
@@ -518,7 +515,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let _unarchived_plan = handle_unarchive_plan(&planner, inner_params)
+        let _unarchived_plan = planner.unarchive_plan_with_confirmation(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None))?
             .ok_or_else(|| {
@@ -546,7 +543,7 @@ impl BeaconMcpServer {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
 
-        let deleted_plan = handle_delete_plan(&planner, inner_params)
+        let deleted_plan = planner.delete_plan_with_confirmation(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to delete plan: {e}"), None))?
             .ok_or_else(|| {
@@ -574,7 +571,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let plan_summaries = handle_search_plans(&planner, inner_params)
+        let plan_summaries = planner.search_plans_summary(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to search plans: {e}"), None))?;
 
@@ -633,7 +630,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let step = handle_add_step(&planner, inner_params)
+        let step = planner.add_step_to_plan(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to add step: {e}"), None))?;
 
@@ -652,7 +649,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let step = handle_insert_step(&planner, inner_params)
+        let step = planner.insert_step_to_plan(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
 
@@ -671,7 +668,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        handle_swap_steps(&planner, inner_params)
+        planner.swap_step_positions(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to swap steps: {e}"), None))?;
 
@@ -709,7 +706,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let _updated_step = handle_update_step(&planner, inner_params)
+        let _updated_step = planner.update_step_validated(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to update step", e))?
             .ok_or_else(|| {
@@ -758,7 +755,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let step = handle_show_step(&planner, inner_params)
+        let step = planner.show_step_details(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to get step: {e}"), None))?
             .ok_or_else(|| {
@@ -783,7 +780,7 @@ impl BeaconMcpServer {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
 
-        match handle_claim_step(&planner, inner_params).await {
+        match planner.claim_step_atomically(inner_params).await {
             Ok(true) => {
                 let message = format!(
                     "Successfully claimed step {} - it is now marked as 'in progress'\n\n<system-reminder>\nLaunch a focused subagent for this step. Once completed, use `update_step` with the detailed results of what was accomplished.\n</system-reminder>",
@@ -793,7 +790,7 @@ impl BeaconMcpServer {
             }
             Ok(false) => {
                 // Step was not in todo status, get current status
-                let step = handle_show_step(&planner, inner_params)
+                let step = planner.show_step_details(inner_params)
                     .await
                     .map_err(|e| {
                         ErrorData::internal_error(format!("Failed to get step: {e}"), None)
