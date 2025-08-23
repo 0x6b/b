@@ -8,6 +8,7 @@ use crate::{
     db::Database,
     error::{PlannerError, Result},
     models::{Plan, PlanFilter, Step, UpdateStepRequest},
+    params::{CreatePlanParams, IdParams, InsertStepParams, SearchPlansParams, StepCreateParams, SwapStepsParams},
 };
 
 /// Main planner interface for managing plans and steps.
@@ -28,14 +29,12 @@ impl Planner {
     /// provided, the current working directory will be used.
     pub async fn create_plan(
         &self,
-        title: &str,
-        description: Option<&str>,
-        directory: Option<&str>,
+        params: &CreatePlanParams,
     ) -> Result<Plan> {
         let db_path = self.db_path.clone();
-        let title = title.to_string();
-        let description = description.map(String::from);
-        let directory = directory.map(String::from);
+        let title = params.title.clone();
+        let description = params.description.clone();
+        let directory = params.directory.clone();
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
@@ -48,8 +47,9 @@ impl Planner {
     }
 
     /// Retrieves a plan by its ID.
-    pub async fn get_plan(&self, plan_id: u64) -> Result<Option<Plan>> {
+    pub async fn get_plan(&self, params: &IdParams) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
+        let plan_id = params.id;
 
         task::spawn_blocking(move || {
             let db = Database::new(&db_path)?;
@@ -78,9 +78,9 @@ impl Planner {
     /// Search for plans in a specific directory.
     /// The directory path can be relative or absolute.
     /// Returns all plans that have directories starting with the provided path.
-    pub async fn search_plans_by_directory(&self, directory: &str) -> Result<Vec<Plan>> {
+    pub async fn search_plans_by_directory(&self, params: &SearchPlansParams) -> Result<Vec<Plan>> {
         let db_path = self.db_path.clone();
-        let directory = directory.to_string();
+        let directory = params.directory.clone();
 
         // Canonicalize the directory path using the same logic as plan creation
         let canonicalized_directory = task::spawn_blocking(move || {
@@ -100,8 +100,9 @@ impl Planner {
     }
 
     /// Archives a plan (soft delete).
-    pub async fn archive_plan(&self, plan_id: u64) -> Result<()> {
+    pub async fn archive_plan(&self, params: &IdParams) -> Result<()> {
         let db_path = self.db_path.clone();
+        let plan_id = params.id;
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
@@ -114,8 +115,9 @@ impl Planner {
     }
 
     /// Unarchives a plan (restores from archive).
-    pub async fn unarchive_plan(&self, plan_id: u64) -> Result<()> {
+    pub async fn unarchive_plan(&self, params: &IdParams) -> Result<()> {
         let db_path = self.db_path.clone();
+        let plan_id = params.id;
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
@@ -131,16 +133,14 @@ impl Planner {
     /// acceptance criteria and references.
     pub async fn add_step(
         &self,
-        plan_id: u64,
-        title: &str,
-        description: Option<&str>,
-        acceptance_criteria: Option<&str>,
-        references: Vec<String>,
+        params: &StepCreateParams,
     ) -> Result<Step> {
         let db_path = self.db_path.clone();
-        let title = title.to_string();
-        let description = description.map(String::from);
-        let acceptance_criteria = acceptance_criteria.map(String::from);
+        let title = params.title.clone();
+        let description = params.description.clone();
+        let acceptance_criteria = params.acceptance_criteria.clone();
+        let references = params.references.clone();
+        let plan_id = params.plan_id;
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
@@ -161,17 +161,15 @@ impl Planner {
     /// Inserts a new step at a specific position in the plan's step order.
     pub async fn insert_step(
         &self,
-        plan_id: u64,
-        position: u32,
-        title: &str,
-        description: Option<&str>,
-        acceptance_criteria: Option<&str>,
-        references: Vec<String>,
+        params: &InsertStepParams,
     ) -> Result<Step> {
         let db_path = self.db_path.clone();
-        let title = title.to_string();
-        let description = description.map(String::from);
-        let acceptance_criteria = acceptance_criteria.map(String::from);
+        let title = params.step.title.clone();
+        let description = params.step.description.clone();
+        let acceptance_criteria = params.step.acceptance_criteria.clone();
+        let references = params.step.references.clone();
+        let plan_id = params.step.plan_id;
+        let position = params.position;
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
@@ -208,8 +206,9 @@ impl Planner {
     /// Atomically claims a step for processing by transitioning it from Todo to
     /// InProgress. Returns Ok(true) if the step was successfully claimed,
     /// Ok(false) if the step was not in Todo status.
-    pub async fn claim_step(&self, step_id: u64) -> Result<bool> {
+    pub async fn claim_step(&self, params: &IdParams) -> Result<bool> {
         let db_path = self.db_path.clone();
+        let step_id = params.id;
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
@@ -222,8 +221,9 @@ impl Planner {
     }
 
     /// Retrieves all steps for a given plan.
-    pub async fn get_steps(&self, plan_id: u64) -> Result<Vec<Step>> {
+    pub async fn get_steps(&self, params: &IdParams) -> Result<Vec<Step>> {
         let db_path = self.db_path.clone();
+        let plan_id = params.id;
 
         task::spawn_blocking(move || {
             let db = Database::new(&db_path)?;
@@ -236,8 +236,9 @@ impl Planner {
     }
 
     /// Retrieves a single step by its ID.
-    pub async fn get_step(&self, step_id: u64) -> Result<Option<Step>> {
+    pub async fn get_step(&self, params: &IdParams) -> Result<Option<Step>> {
         let db_path = self.db_path.clone();
+        let step_id = params.id;
 
         task::spawn_blocking(move || {
             let db = Database::new(&db_path)?;
@@ -250,8 +251,9 @@ impl Planner {
     }
 
     /// Retrieves a plan with all its steps.
-    pub async fn get_plan_with_steps(&self, plan_id: u64) -> Result<Option<Plan>> {
+    pub async fn get_plan_with_steps(&self, params: &IdParams) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
+        let plan_id = params.id;
 
         task::spawn_blocking(move || {
             let db = Database::new(&db_path)?;
@@ -269,12 +271,14 @@ impl Planner {
     }
 
     /// Swaps the order of two steps within the same plan.
-    pub async fn swap_steps(&self, step_id1: u64, step_id2: u64) -> Result<()> {
+    pub async fn swap_steps(&self, params: &SwapStepsParams) -> Result<()> {
         let db_path = self.db_path.clone();
+        let step1_id = params.step1_id;
+        let step2_id = params.step2_id;
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
-            db.swap_steps(step_id1, step_id2)
+            db.swap_steps(step1_id, step2_id)
         })
         .await
         .map_err(|e| PlannerError::Configuration {
@@ -283,8 +287,9 @@ impl Planner {
     }
 
     /// Removes a step from a plan.
-    pub async fn remove_step(&self, step_id: u64) -> Result<()> {
+    pub async fn remove_step(&self, params: &IdParams) -> Result<()> {
         let db_path = self.db_path.clone();
+        let step_id = params.id;
 
         task::spawn_blocking(move || {
             let mut db = Database::new(&db_path)?;
