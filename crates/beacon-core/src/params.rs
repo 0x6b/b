@@ -1,14 +1,15 @@
 //! Parameter structures for Beacon operations
 //!
-//! This module contains shared parameter structures that can be used across different
-//! interfaces (CLI, MCP, etc.) without framework-specific derives or dependencies.
-//! These structures provide a clean interface for passing data between different
-//! layers of the application.
+//! This module contains shared parameter structures that can be used across
+//! different interfaces (CLI, MCP, etc.) without framework-specific derives or
+//! dependencies. These structures provide a clean interface for passing data
+//! between different layers of the application.
 //!
 //! ## Architecture: Parameter Wrapper Pattern
 //!
-//! This module implements a parameter wrapper pattern that enables clean separation
-//! of concerns between the core domain logic and interface-specific frameworks:
+//! This module implements a parameter wrapper pattern that enables clean
+//! separation of concerns between the core domain logic and interface-specific
+//! frameworks:
 //!
 //! ```text
 //! ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -22,8 +23,8 @@
 //! 1. **Separation of Concerns**: Core parameter structures remain independent
 //!    of UI framework dependencies (clap, serde, schemars).
 //!
-//! 2. **Interface Flexibility**: Each interface (CLI, MCP, future REST API)
-//!    can add its own framework-specific derives without polluting core logic.
+//! 2. **Interface Flexibility**: Each interface (CLI, MCP, future REST API) can
+//!    add its own framework-specific derives without polluting core logic.
 //!
 //! 3. **Conditional Compilation**: Features like JSON schema generation can be
 //!    enabled only where needed, keeping core lightweight.
@@ -103,13 +104,14 @@
 //! struct NewOperationRequest(beacon_core::params::NewOperation);
 //! ```
 
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Generic parameters for operations requiring just an ID.
 ///
-/// Used for operations like show_plan, archive_plan, unarchive_plan, show_step, claim_step.
+/// Used for operations like show_plan, archive_plan, unarchive_plan, show_step,
+/// claim_step.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct Id {

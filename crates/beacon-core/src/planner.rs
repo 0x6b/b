@@ -27,10 +27,7 @@ impl Planner {
     /// absolute path. If a relative path is provided, it will be converted
     /// to absolute using the current working directory. If no directory is
     /// provided, the current working directory will be used.
-    pub async fn create_plan(
-        &self,
-        params: &CreatePlan,
-    ) -> Result<Plan> {
+    pub async fn create_plan(&self, params: &CreatePlan) -> Result<Plan> {
         let db_path = self.db_path.clone();
         let title = params.title.clone();
         let description = params.description.clone();
@@ -131,10 +128,7 @@ impl Planner {
 
     /// Adds a new step to the specified plan with optional description,
     /// acceptance criteria and references.
-    pub async fn add_step(
-        &self,
-        params: &StepCreate,
-    ) -> Result<Step> {
+    pub async fn add_step(&self, params: &StepCreate) -> Result<Step> {
         let db_path = self.db_path.clone();
         let title = params.title.clone();
         let description = params.description.clone();
@@ -159,10 +153,7 @@ impl Planner {
     }
 
     /// Inserts a new step at a specific position in the plan's step order.
-    pub async fn insert_step(
-        &self,
-        params: &InsertStep,
-    ) -> Result<Step> {
+    pub async fn insert_step(&self, params: &InsertStep) -> Result<Step> {
         let db_path = self.db_path.clone();
         let title = params.step.title.clone();
         let description = params.step.description.clone();

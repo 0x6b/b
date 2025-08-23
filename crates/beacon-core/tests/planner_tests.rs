@@ -220,7 +220,9 @@ async fn test_error_handling_invalid_operations() {
         .await;
     assert!(result.is_err());
 
-    let result = planner.archive_plan(&beacon_core::params::Id { id: 999 }).await;
+    let result = planner
+        .archive_plan(&beacon_core::params::Id { id: 999 })
+        .await;
     assert!(result.is_err());
 
     // Test operations on non-existent step
@@ -236,7 +238,9 @@ async fn test_error_handling_invalid_operations() {
         .await;
     assert!(result.is_err());
 
-    let result = planner.remove_step(&beacon_core::params::Id { id: 999 }).await;
+    let result = planner
+        .remove_step(&beacon_core::params::Id { id: 999 })
+        .await;
     assert!(result.is_err());
 }
 

@@ -757,17 +757,22 @@ impl Database {
         let new_title = request.title.unwrap_or(current_title);
         let new_description = request.description.or(current_desc);
         let new_criteria = request.acceptance_criteria.or(current_criteria);
-        let new_references = request.references.map(|refs| refs.join(",")).or(current_refs);
-        let new_status_str = request.status
+        let new_references = request
+            .references
+            .map(|refs| refs.join(","))
+            .or(current_refs);
+        let new_status_str = request
+            .status
             .map(|s| s.as_str().to_string())
             .unwrap_or(current_status.clone());
 
         // Determine the result value based on the status change
         let new_result = if let Some(new_status) = request.status {
             match new_status {
-                StepStatus::Done => request.result, // Use provided result (already validated as required)
+                StepStatus::Done => request.result, /* Use provided result (already validated as
+                                                      * required) */
                 StepStatus::Todo | StepStatus::InProgress => None, /* Clear result for non-done
-                                              * statuses */
+                                                                    * statuses */
             }
         } else {
             // Status not changing, preserve existing result

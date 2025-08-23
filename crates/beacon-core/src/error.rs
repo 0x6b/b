@@ -77,7 +77,7 @@ impl PlannerError {
 pub trait ResultExt<T> {
     /// Map database errors with a message
     fn db_err(self, message: &str) -> Result<T>;
-    
+
     /// Map configuration errors with a message
     fn config_err(self, message: &str) -> Result<T>;
 }
@@ -86,7 +86,7 @@ impl<T> ResultExt<T> for std::result::Result<T, rusqlite::Error> {
     fn db_err(self, message: &str) -> Result<T> {
         self.map_err(|e| PlannerError::database_error(message, e))
     }
-    
+
     fn config_err(self, message: &str) -> Result<T> {
         self.map_err(|e| PlannerError::Configuration {
             message: format!("{}: {}", message, e),
