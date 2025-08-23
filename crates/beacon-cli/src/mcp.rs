@@ -4,10 +4,11 @@
 //! providing a standardized interface for AI models to interact with
 //! the task planning system.
 
-use std::{fmt::Write, future::Future, sync::Arc};
+use std::{fmt::Write, future::Future, str::FromStr, sync::Arc};
 
 use anyhow::Result;
 use beacon_core::{
+    display::{CreateResult, OperationStatus, PlanList},
     params as core,
     PlanFilter,
     PlanStatus,
@@ -420,15 +421,8 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| to_mcp_error("Failed to create plan", e))?;
 
-        let mut result = format!("Created plan: {} (ID: {})", plan.title, plan.id);
-        if let Some(desc) = &inner_params.description {
-            result.push_str(&format!("\nDescription: {desc}"));
-        }
-        if let Some(dir) = &plan.directory {
-            result.push_str(&format!("\nDirectory: {dir}"));
-        }
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        let result = CreateResult::new(plan, "plan");
+        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
     #[tool(
@@ -457,17 +451,18 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| to_mcp_error("Failed to list plans", e))?;
 
-        let mut result = String::new();
-
         if plans.is_empty() {
-            if inner_params.archived {
-                writeln!(result, "# No archived plans found").unwrap();
+            let title = if inner_params.archived {
+                "No archived plans found"
             } else {
-                writeln!(result, "# No active plans found").unwrap();
-            }
+                "No active plans found"
+            };
+            let empty_plans: Vec<beacon_core::models::PlanSummary> = Vec::new();
+            let result = PlanList::with_title(&empty_plans, title);
+            Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
         } else {
-            // Get step counts for each plan
-            let mut plans_with_progress = Vec::new();
+            // Convert Plans to PlanSummary with step counts
+            let mut plan_summaries = Vec::new();
             for plan in plans {
                 let steps = planner.get_steps(&core::Id { id: plan.id }).await.map_err(|e| {
                     ErrorData::internal_error(format!("Failed to get steps: {e}"), None)
@@ -476,46 +471,21 @@ impl BeaconMcpServer {
                 let completed_steps = steps
                     .iter()
                     .filter(|s| s.status == StepStatus::Done)
-                    .count();
-                let total_steps = steps.len();
+                    .count() as u32;
+                let total_steps = steps.len() as u32;
 
-                plans_with_progress.push((plan, completed_steps, total_steps));
+                let summary = beacon_core::models::PlanSummary::from_plan(plan, total_steps, completed_steps);
+                plan_summaries.push(summary);
             }
 
-            if inner_params.archived {
-                writeln!(result, "# Archived Plans").unwrap();
+            let title = if inner_params.archived {
+                "Archived Plans"
             } else {
-                writeln!(result, "# Active Plans").unwrap();
-            }
-
-            for (plan, completed, total) in plans_with_progress {
-                writeln!(result).unwrap();
-
-                let progress = if total > 0 {
-                    format!(" ({}/{})", completed, total)
-                } else {
-                    String::new()
-                };
-
-                writeln!(result, "## {} (ID: {}){}", plan.title, plan.id, progress).unwrap();
-                writeln!(result).unwrap();
-
-                if let Some(desc) = &plan.description {
-                    writeln!(result, "- Description: {}", desc).unwrap();
-                }
-                if let Some(dir) = &plan.directory {
-                    writeln!(result, "- Directory: {}", dir).unwrap();
-                }
-                writeln!(
-                    result,
-                    "- Created: {}",
-                    plan.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
-                )
-                .unwrap();
-            }
-        };
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+                "Active Plans"
+            };
+            let result = PlanList::with_title(&plan_summaries, title);
+            Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+        }
     }
 
     #[tool(
@@ -527,7 +497,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let plan = planner
+        let mut plan = planner
             .get_plan(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to get plan", e))?
@@ -535,89 +505,12 @@ impl BeaconMcpServer {
                 ErrorData::internal_error(format!("Plan with ID {} not found", inner_params.id), None)
             })?;
 
-        let steps = planner
+        plan.steps = planner
             .get_steps(inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to get steps", e))?;
 
-        let mut result = String::new();
-        writeln!(result, "# {}. {}", plan.id, plan.title).unwrap();
-        writeln!(result).unwrap();
-
-        // Metadata section
-        writeln!(result, "- Status: {}", plan.status.as_str()).unwrap();
-        if let Some(dir) = &plan.directory {
-            writeln!(result, "- Directory: {dir}").unwrap();
-        }
-        writeln!(
-            result,
-            "- Created: {}",
-            plan.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
-        )
-        .unwrap();
-        writeln!(
-            result,
-            "- Updated: {}",
-            plan.updated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
-        )
-        .unwrap();
-
-        // Description as a paragraph
-        if let Some(desc) = &plan.description {
-            writeln!(result).unwrap();
-            writeln!(result, "{desc}").unwrap();
-        }
-
-        if steps.is_empty() {
-            writeln!(result).unwrap();
-            writeln!(result, "No steps in this plan.").unwrap();
-        } else {
-            writeln!(result).unwrap();
-            writeln!(result, "## Steps").unwrap();
-            writeln!(result).unwrap();
-            for step in steps.iter() {
-                let status_text = match step.status {
-                    StepStatus::Done => "done",
-                    StepStatus::InProgress => "in progress",
-                    StepStatus::Todo => "todo",
-                };
-                writeln!(result, "### {}. {} ({})", step.id, step.title, status_text).unwrap();
-                writeln!(result).unwrap();
-
-                if let Some(desc) = &step.description {
-                    writeln!(result, "{desc}").unwrap();
-                    writeln!(result).unwrap();
-                }
-
-                if let Some(criteria) = &step.acceptance_criteria {
-                    writeln!(result, "#### Acceptance").unwrap();
-                    writeln!(result).unwrap();
-                    writeln!(result, "{criteria}").unwrap();
-                    writeln!(result).unwrap();
-                }
-
-                // Show result only for completed steps
-                if step.status == StepStatus::Done {
-                    if let Some(step_result) = &step.result {
-                        writeln!(result, "#### Result").unwrap();
-                        writeln!(result).unwrap();
-                        writeln!(result, "{}", step_result).unwrap();
-                        writeln!(result).unwrap();
-                    }
-                }
-
-                if !step.references.is_empty() {
-                    writeln!(result, "#### References").unwrap();
-                    writeln!(result).unwrap();
-                    for reference in &step.references {
-                        writeln!(result, "- {reference}").unwrap();
-                    }
-                    writeln!(result).unwrap();
-                }
-            }
-        }
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        Ok(CallToolResult::success(vec![Content::text(plan.to_string())]))
     }
 
     #[tool(
@@ -634,11 +527,11 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to archive plan: {e}"), None))?;
 
-        let result = format!(
+        let result = OperationStatus::success(format!(
             "Archived plan with ID {}. Use 'unarchive_plan' to restore it.",
             inner_params.id
-        );
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        ));
+        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
     #[tool(
@@ -654,11 +547,11 @@ impl BeaconMcpServer {
             ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None)
         })?;
 
-        let result = format!(
+        let result = OperationStatus::success(format!(
             "Unarchived plan with ID {}. Plan is now active again.",
             inner_params.id
-        );
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        ));
+        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
     #[tool(
@@ -746,24 +639,8 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to add step: {e}"), None))?;
 
-        let mut result = String::new();
-        writeln!(
-            result,
-            "Added step: {} (ID: {}) to plan {}",
-            step.title, step.id, inner_params.plan_id
-        )
-        .unwrap();
-        if let Some(desc) = &step.description {
-            writeln!(result, "Description: {desc}").unwrap();
-        }
-        if let Some(criteria) = &step.acceptance_criteria {
-            writeln!(result, "Acceptance criteria: {criteria}").unwrap();
-        }
-        if !step.references.is_empty() {
-            writeln!(result, "References: {}", step.references.join(", ")).unwrap();
-        }
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        let result = CreateResult::new(step, "step");
+        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
     #[tool(
@@ -780,24 +657,8 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
 
-        let mut result = String::new();
-        writeln!(
-            result,
-            "Inserted step: {} (ID: {}) at position {} in plan {}",
-            step.title, step.id, inner_params.position, inner_params.step.plan_id
-        )
-        .unwrap();
-        if let Some(desc) = &step.description {
-            writeln!(result, "Description: {desc}").unwrap();
-        }
-        if let Some(criteria) = &step.acceptance_criteria {
-            writeln!(result, "Acceptance criteria: {criteria}").unwrap();
-        }
-        if !step.references.is_empty() {
-            writeln!(result, "References: {}", step.references.join(", ")).unwrap();
-        }
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        let result = CreateResult::new(step, "step");
+        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
     #[tool(
@@ -814,12 +675,12 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to swap steps: {e}"), None))?;
 
-        let result = format!(
+        let result = OperationStatus::success(format!(
             "Successfully swapped the order of steps {} and {}",
             inner_params.step1_id, inner_params.step2_id
-        );
+        ));
 
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
     }
 
     #[tool(
@@ -848,21 +709,14 @@ impl BeaconMcpServer {
         let inner_params = params.as_ref();
         let mut messages = Vec::new();
 
-        // Parse status if provided
+        // Parse status if provided using FromStr
         let step_status = if let Some(status_str) = &inner_params.status {
-            Some(match status_str.as_str() {
-                "todo" => StepStatus::Todo,
-                "inprogress" => StepStatus::InProgress,
-                "done" => StepStatus::Done,
-                _ => {
-                    return Err(ErrorData::internal_error(
-                        format!(
-                            "Invalid status: {status_str}. Must be 'todo', 'inprogress', or 'done'"
-                        ),
-                        None,
-                    ))
-                }
-            })
+            Some(StepStatus::from_str(status_str).map_err(|_| {
+                ErrorData::internal_error(
+                    format!("Invalid status: {status_str}. Must be 'todo', 'inprogress', or 'done'"),
+                    None,
+                )
+            })?)
         } else {
             None
         };
@@ -936,53 +790,7 @@ impl BeaconMcpServer {
                 ErrorData::internal_error(format!("Step with ID {} not found", inner_params.id), None)
             })?;
 
-        let mut result = String::new();
-        writeln!(result, "# Step {} Details", step.id).unwrap();
-        writeln!(result).unwrap();
-        writeln!(result, "Title: {}", step.title).unwrap();
-
-        let status_text = match step.status {
-            StepStatus::Done => "✓ Done",
-            StepStatus::InProgress => "➤ In Progress",
-            StepStatus::Todo => "○ Todo",
-        };
-        writeln!(result, "Status: {}", status_text).unwrap();
-        writeln!(result, "Plan ID: {}", step.plan_id).unwrap();
-
-        if let Some(desc) = &step.description {
-            writeln!(result).unwrap();
-            writeln!(result, "## Description").unwrap();
-            writeln!(result, "{}", desc).unwrap();
-        }
-
-        if let Some(criteria) = &step.acceptance_criteria {
-            writeln!(result).unwrap();
-            writeln!(result, "## Acceptance Criteria").unwrap();
-            writeln!(result, "{}", criteria).unwrap();
-        }
-
-        // Show result only for completed steps
-        if step.status == StepStatus::Done {
-            if let Some(step_result) = &step.result {
-                writeln!(result).unwrap();
-                writeln!(result, "## Result").unwrap();
-                writeln!(result, "{}", step_result).unwrap();
-            }
-        }
-
-        if !step.references.is_empty() {
-            writeln!(result).unwrap();
-            writeln!(result, "## References").unwrap();
-            for reference in &step.references {
-                writeln!(result, "- {}", reference).unwrap();
-            }
-        }
-
-        writeln!(result).unwrap();
-        writeln!(result, "Created: {}", step.created_at).unwrap();
-        writeln!(result, "Updated: {}", step.updated_at).unwrap();
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
+        Ok(CallToolResult::success(vec![Content::text(step.to_string())]))
     }
 
     #[tool(
@@ -1010,12 +818,12 @@ impl BeaconMcpServer {
                 })?;
 
                 if let Some(step) = step {
-                    let status_str = match step.status {
+                    let status_description = match step.status {
                         StepStatus::InProgress => "already in progress",
                         StepStatus::Done => "already completed",
                         StepStatus::Todo => "in todo status but could not be claimed",
                     };
-                    let message = format!("Cannot claim step {} - it is {}", inner_params.id, status_str);
+                    let message = format!("Cannot claim step {} - it is {}", inner_params.id, status_description);
                     Ok(CallToolResult::success(vec![Content::text(message)]))
                 } else {
                     Err(ErrorData::internal_error(
