@@ -8,7 +8,7 @@ use crate::{
     db::Database,
     error::{PlannerError, Result},
     models::{Plan, PlanFilter, Step, UpdateStepRequest},
-    params::{CreatePlanParams, IdParams, InsertStepParams, SearchPlansParams, StepCreateParams, SwapStepsParams},
+    params::{CreatePlan, Id, InsertStep, SearchPlans, StepCreate, SwapSteps},
 };
 
 /// Main planner interface for managing plans and steps.
@@ -29,7 +29,7 @@ impl Planner {
     /// provided, the current working directory will be used.
     pub async fn create_plan(
         &self,
-        params: &CreatePlanParams,
+        params: &CreatePlan,
     ) -> Result<Plan> {
         let db_path = self.db_path.clone();
         let title = params.title.clone();
@@ -47,7 +47,7 @@ impl Planner {
     }
 
     /// Retrieves a plan by its ID.
-    pub async fn get_plan(&self, params: &IdParams) -> Result<Option<Plan>> {
+    pub async fn get_plan(&self, params: &Id) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
@@ -78,7 +78,7 @@ impl Planner {
     /// Search for plans in a specific directory.
     /// The directory path can be relative or absolute.
     /// Returns all plans that have directories starting with the provided path.
-    pub async fn search_plans_by_directory(&self, params: &SearchPlansParams) -> Result<Vec<Plan>> {
+    pub async fn search_plans_by_directory(&self, params: &SearchPlans) -> Result<Vec<Plan>> {
         let db_path = self.db_path.clone();
         let directory = params.directory.clone();
 
@@ -100,7 +100,7 @@ impl Planner {
     }
 
     /// Archives a plan (soft delete).
-    pub async fn archive_plan(&self, params: &IdParams) -> Result<()> {
+    pub async fn archive_plan(&self, params: &Id) -> Result<()> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
@@ -115,7 +115,7 @@ impl Planner {
     }
 
     /// Unarchives a plan (restores from archive).
-    pub async fn unarchive_plan(&self, params: &IdParams) -> Result<()> {
+    pub async fn unarchive_plan(&self, params: &Id) -> Result<()> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
@@ -133,7 +133,7 @@ impl Planner {
     /// acceptance criteria and references.
     pub async fn add_step(
         &self,
-        params: &StepCreateParams,
+        params: &StepCreate,
     ) -> Result<Step> {
         let db_path = self.db_path.clone();
         let title = params.title.clone();
@@ -161,7 +161,7 @@ impl Planner {
     /// Inserts a new step at a specific position in the plan's step order.
     pub async fn insert_step(
         &self,
-        params: &InsertStepParams,
+        params: &InsertStep,
     ) -> Result<Step> {
         let db_path = self.db_path.clone();
         let title = params.step.title.clone();
@@ -206,7 +206,7 @@ impl Planner {
     /// Atomically claims a step for processing by transitioning it from Todo to
     /// InProgress. Returns Ok(true) if the step was successfully claimed,
     /// Ok(false) if the step was not in Todo status.
-    pub async fn claim_step(&self, params: &IdParams) -> Result<bool> {
+    pub async fn claim_step(&self, params: &Id) -> Result<bool> {
         let db_path = self.db_path.clone();
         let step_id = params.id;
 
@@ -221,7 +221,7 @@ impl Planner {
     }
 
     /// Retrieves all steps for a given plan.
-    pub async fn get_steps(&self, params: &IdParams) -> Result<Vec<Step>> {
+    pub async fn get_steps(&self, params: &Id) -> Result<Vec<Step>> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
@@ -236,7 +236,7 @@ impl Planner {
     }
 
     /// Retrieves a single step by its ID.
-    pub async fn get_step(&self, params: &IdParams) -> Result<Option<Step>> {
+    pub async fn get_step(&self, params: &Id) -> Result<Option<Step>> {
         let db_path = self.db_path.clone();
         let step_id = params.id;
 
@@ -251,7 +251,7 @@ impl Planner {
     }
 
     /// Retrieves a plan with all its steps.
-    pub async fn get_plan_with_steps(&self, params: &IdParams) -> Result<Option<Plan>> {
+    pub async fn get_plan_with_steps(&self, params: &Id) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
@@ -271,7 +271,7 @@ impl Planner {
     }
 
     /// Swaps the order of two steps within the same plan.
-    pub async fn swap_steps(&self, params: &SwapStepsParams) -> Result<()> {
+    pub async fn swap_steps(&self, params: &SwapSteps) -> Result<()> {
         let db_path = self.db_path.clone();
         let step1_id = params.step1_id;
         let step2_id = params.step2_id;
@@ -287,7 +287,7 @@ impl Planner {
     }
 
     /// Removes a step from a plan.
-    pub async fn remove_step(&self, params: &IdParams) -> Result<()> {
+    pub async fn remove_step(&self, params: &Id) -> Result<()> {
         let db_path = self.db_path.clone();
         let step_id = params.id;
 
