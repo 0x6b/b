@@ -51,7 +51,9 @@
 pub mod db;
 pub mod display;
 pub mod error;
+pub mod handlers;
 pub mod models;
+pub mod operations;
 pub mod params;
 pub mod planner;
 
@@ -61,9 +63,18 @@ pub use display::{
     format_plan_list, format_step_list, CreateResult, DeleteResult, OperationStatus, UpdateResult,
 };
 pub use error::{PlannerError, Result};
+pub use handlers::{
+    handle_add_step, handle_archive_plan, handle_claim_step, handle_create_plan,
+    handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans,
+    handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan,
+    handle_update_step,
+};
 pub use models::{
     format_datetime, CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
     UpdateStepRequest,
+};
+pub use operations::{
+    create_directory_filter, create_plan_filter, create_update_request, validate_step_update,
 };
 pub use params::{
     CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
