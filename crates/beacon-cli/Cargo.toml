@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Internal dependencies
-beacon-core = { path = "../beacon-core" }
+beacon-core = { path = "../beacon-core", features = ["schema"] }
 
 # CLI framework
 clap = { workspace = true }
