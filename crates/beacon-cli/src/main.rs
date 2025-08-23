@@ -11,8 +11,10 @@ use std::str::FromStr;
 
 use anyhow::{Context, Result};
 use beacon_core::{
-    format_plan_list, CreateResult, OperationStatus, PlanFilter, PlanStatus, PlannerBuilder,
-    StepStatus, UpdateResult,
+    format_plan_list, handle_add_step, handle_archive_plan, handle_create_plan, handle_delete_plan,
+    handle_insert_step, handle_list_plans, handle_search_plans, handle_show_plan, handle_show_step,
+    handle_swap_steps, handle_unarchive_plan, handle_update_step, CreateResult, OperationStatus,
+    PlannerBuilder, StepStatus, UpdateResult,
 };
 use clap::Parser;
 use cli::{Cli, Commands, PlanCommands, StepCommands};
@@ -69,6 +71,7 @@ async fn handle_plan_command(
         Show(args) => handle_plan_show(planner, &args.into(), renderer).await,
         Archive(args) => handle_plan_archive(planner, &args.into(), renderer).await,
         Unarchive(args) => handle_plan_unarchive(planner, &args.into(), renderer).await,
+        Delete(args) => handle_plan_delete(planner, args, renderer).await,
         Search(args) => handle_plan_search(planner, &args.into(), renderer).await,
     }
 }
@@ -107,8 +110,7 @@ async fn handle_plan_create(
     params: &beacon_core::params::CreatePlan,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let plan = planner
-        .create_plan(params)
+    let plan = handle_create_plan(&planner, params)
         .await
         .context("Failed to create plan")?;
 
@@ -124,42 +126,9 @@ async fn handle_plan_list(
     params: &beacon_core::params::ListPlans,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let filter = if params.archived {
-        Some(PlanFilter {
-            status: Some(PlanStatus::Archived),
-            include_archived: true,
-            ..Default::default()
-        })
-    } else {
-        Some(PlanFilter {
-            status: Some(PlanStatus::Active),
-            include_archived: false,
-            ..Default::default()
-        })
-    };
-
-    let plans = planner
-        .list_plans(filter)
+    let plan_summaries = handle_list_plans(&planner, params)
         .await
         .context("Failed to list plans")?;
-
-    // Convert plans to PlanSummary objects
-    let mut plan_summaries = Vec::new();
-    for plan in plans {
-        let steps = planner
-            .get_steps(&beacon_core::params::Id { id: plan.id })
-            .await
-            .context("Failed to get steps for plan")?;
-
-        let completed_steps = steps
-            .iter()
-            .filter(|s| s.status == StepStatus::Done)
-            .count() as u32;
-        let total_steps = steps.len() as u32;
-
-        let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
-        plan_summaries.push(plan_summary);
-    }
 
     let title = if params.archived {
         "Archived Plans"
@@ -179,16 +148,10 @@ async fn handle_plan_show(
     params: &beacon_core::params::Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let mut plan = planner
-        .get_plan(params)
+    let plan = handle_show_plan(&planner, params)
         .await
         .context("Failed to get plan")?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
-
-    plan.steps = planner
-        .get_steps(params)
-        .await
-        .context("Failed to get steps")?;
 
     renderer.render(&plan.to_string())?;
 
@@ -201,22 +164,15 @@ async fn handle_plan_archive(
     params: &beacon_core::params::Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    // Get plan details for confirmation
-    let plan = planner
-        .get_plan(params)
+    let plan = handle_archive_plan(&planner, params)
         .await
-        .context("Failed to get plan")?
+        .with_context(|| format!("Failed to archive plan {}", params.id))?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
 
     let steps = planner
         .get_steps(params)
         .await
         .context("Failed to get steps")?;
-
-    planner
-        .archive_plan(params)
-        .await
-        .with_context(|| format!("Failed to archive plan {}", params.id))?;
 
     let step_info = if !steps.is_empty() {
         format!(" with {} step(s)", steps.len())
@@ -240,12 +196,60 @@ async fn handle_plan_unarchive(
     params: &beacon_core::params::Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    planner
-        .unarchive_plan(params)
+    let _plan = handle_unarchive_plan(&planner, params)
         .await
         .with_context(|| format!("Failed to unarchive plan {}", params.id))?;
 
     let message = format!("Unarchived plan with ID: {}", params.id);
+    let status = OperationStatus::success(message);
+    renderer.render(&status.to_string())?;
+    Ok(())
+}
+
+/// Handle plan delete command
+async fn handle_plan_delete(
+    planner: beacon_core::Planner,
+    args: cli::DeletePlanArgs,
+    renderer: &TerminalRenderer,
+) -> Result<()> {
+    // Check if --confirm flag was provided
+    if !args.confirm {
+        let message = format!(
+            "Plan deletion requires confirmation. Use 'beacon plan delete {} --confirm' to permanently delete the plan.",
+            args.id
+        );
+        let status = OperationStatus::failure(message);
+        renderer.render(&status.to_string())?;
+        return Ok(());
+    }
+
+    let params: beacon_core::params::Id = args.into();
+
+    // Get step count before deletion for informative message
+    let steps = planner
+        .get_steps(&params)
+        .await
+        .with_context(|| format!("Failed to get steps for plan {}", params.id))?;
+
+    let plan = handle_delete_plan(&planner, &params)
+        .await
+        .with_context(|| format!("Failed to delete plan {}", params.id))?
+        .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
+
+    let step_info = if steps.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " and {} step{}",
+            steps.len(),
+            if steps.len() == 1 { "" } else { "s" }
+        )
+    };
+
+    let message = format!(
+        "Permanently deleted plan '{}' (ID: {}){step_info}. This action cannot be undone.",
+        plan.title, plan.id
+    );
     let status = OperationStatus::success(message);
     renderer.render(&status.to_string())?;
     Ok(())
@@ -257,41 +261,9 @@ async fn handle_plan_search(
     params: &beacon_core::params::SearchPlans,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let plans = if params.archived {
-        // For archived plans, use list_plans with directory filter
-        let filter = Some(beacon_core::PlanFilter {
-            status: Some(beacon_core::PlanStatus::Archived),
-            directory: Some(params.directory.clone()),
-            ..Default::default()
-        });
-        planner
-            .list_plans(filter)
-            .await
-            .context("Failed to search archived plans")?
-    } else {
-        planner
-            .search_plans_by_directory(params)
-            .await
-            .context("Failed to search plans")?
-    };
-
-    // Convert plans to PlanSummary objects
-    let mut plan_summaries = Vec::new();
-    for plan in plans {
-        let steps = planner
-            .get_steps(&beacon_core::params::Id { id: plan.id })
-            .await
-            .context("Failed to get steps for plan")?;
-
-        let completed_steps = steps
-            .iter()
-            .filter(|s| s.status == StepStatus::Done)
-            .count() as u32;
-        let total_steps = steps.len() as u32;
-
-        let plan_summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
-        plan_summaries.push(plan_summary);
-    }
+    let plan_summaries = handle_search_plans(&planner, params)
+        .await
+        .context("Failed to search plans")?;
 
     let status_text = if params.archived {
         "ARCHIVED"
@@ -312,8 +284,7 @@ async fn handle_step_add(
     params: &beacon_core::params::StepCreate,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let step = planner
-        .add_step(params)
+    let step = handle_add_step(&planner, params)
         .await
         .with_context(|| format!("Failed to add step to plan {}", params.plan_id))?;
 
@@ -329,12 +300,14 @@ async fn handle_step_insert(
     params: &beacon_core::params::InsertStep,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let step = planner.insert_step(params).await.with_context(|| {
-        format!(
-            "Failed to insert step into plan {} at position {}",
-            params.step.plan_id, params.position
-        )
-    })?;
+    let step = handle_insert_step(&planner, params)
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to insert step into plan {} at position {}",
+                params.step.plan_id, params.position
+            )
+        })?;
 
     let result = CreateResult::new(step);
     renderer.render(&result.to_string())?;
@@ -362,11 +335,8 @@ async fn handle_step_update(
         ));
     }
 
-    // Use status directly since it's already StepStatus
-    let step_status = status;
-
     // Validate result requirement for done status
-    if let Some(StepStatus::Done) = step_status {
+    if let Some(StepStatus::Done) = status {
         if params.result.is_none() {
             return Err(anyhow::anyhow!(
                 "Result description is required when marking a step as done. Use --result to describe what was accomplished."
@@ -374,53 +344,28 @@ async fn handle_step_update(
         }
     }
 
-    // Check what will be updated for the message
-    let has_status = status.is_some();
-    let has_title = params.title.is_some();
-    let has_description = params.description.is_some();
-    let has_criteria = params.acceptance_criteria.is_some();
-    let has_references = params.references.is_some();
-
-    // Update all fields in a single call
-    planner
-        .update_step(
-            params.id,
-            beacon_core::UpdateStepRequest {
-                title: params.title.clone(),
-                description: params.description.clone(),
-                acceptance_criteria: params.acceptance_criteria.clone(),
-                references: params.references.clone(),
-                status: step_status,
-                result: params.result.clone(),
-            },
-        )
-        .await
-        .with_context(|| format!("Failed to update step {}", params.id))?;
-
-    // Get the updated step to display
-    let updated_step = planner
-        .get_step(&beacon_core::params::Id { id: params.id })
-        .await
-        .context("Failed to get updated step")?
-        .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found after update", params.id))?;
-
-    // Build list of changes made
+    // Build list of changes made for display
     let mut changes = Vec::new();
-    if has_status {
+    if status.is_some() {
         changes.push("status".to_string());
     }
-    if has_title {
+    if params.title.is_some() {
         changes.push("title".to_string());
     }
-    if has_description {
+    if params.description.is_some() {
         changes.push("description".to_string());
     }
-    if has_criteria {
+    if params.acceptance_criteria.is_some() {
         changes.push("acceptance criteria".to_string());
     }
-    if has_references {
+    if params.references.is_some() {
         changes.push("references".to_string());
     }
+
+    let updated_step = handle_update_step(&planner, params)
+        .await
+        .with_context(|| format!("Failed to update step {}", params.id))?
+        .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
 
     let result = UpdateResult::with_changes(updated_step, changes);
     renderer.render(&result.to_string())?;
@@ -434,8 +379,7 @@ async fn handle_step_show(
     params: &beacon_core::params::Id,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    let step = planner
-        .get_step(params)
+    let step = handle_show_step(&planner, params)
         .await
         .context("Failed to get step")?
         .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
@@ -451,7 +395,7 @@ async fn handle_step_swap(
     params: &beacon_core::params::SwapSteps,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    planner.swap_steps(params).await.with_context(|| {
+    handle_swap_steps(&planner, params).await.with_context(|| {
         format!(
             "Failed to swap steps {} and {}",
             params.step1_id, params.step2_id

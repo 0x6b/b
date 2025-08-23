@@ -4,12 +4,18 @@
 //! providing a standardized interface for AI models to interact with
 //! the task planning system.
 
-use std::{fmt::Write, future::Future, str::FromStr, sync::Arc};
+use std::{fmt::Write, future::Future, sync::Arc};
 
 use anyhow::Result;
 use beacon_core::{
     display::{format_plan_list, CreateResult, OperationStatus},
-    params as core, PlanFilter, PlanStatus, Planner, StepStatus, UpdateStepRequest,
+    handlers::{
+        handle_add_step, handle_archive_plan, handle_claim_step, handle_create_plan,
+        handle_delete_plan, handle_insert_step, handle_list_plans, handle_search_plans,
+        handle_show_plan, handle_show_step, handle_swap_steps, handle_unarchive_plan,
+        handle_update_step,
+    },
+    params as core, Planner,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
@@ -411,8 +417,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let plan = planner
-            .create_plan(inner_params)
+        let plan = handle_create_plan(&planner, inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to create plan", e))?;
 
@@ -431,54 +436,19 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let filter = if inner_params.archived {
-            Some(PlanFilter {
-                status: Some(PlanStatus::Archived),
-                ..Default::default()
-            })
-        } else {
-            Some(PlanFilter {
-                status: Some(PlanStatus::Active),
-                ..Default::default()
-            })
-        };
-
-        let plans = planner
-            .list_plans(filter)
+        let plan_summaries = handle_list_plans(&planner, inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to list plans", e))?;
 
-        if plans.is_empty() {
+        if plan_summaries.is_empty() {
             let title = if inner_params.archived {
                 "No archived plans found"
             } else {
                 "No active plans found"
             };
-            let empty_plans: Vec<beacon_core::models::PlanSummary> = Vec::new();
-            let result = format_plan_list(&empty_plans, Some(title));
+            let result = format_plan_list(&plan_summaries, Some(title));
             Ok(CallToolResult::success(vec![Content::text(result)]))
         } else {
-            // Convert Plans to PlanSummary with step counts
-            let mut plan_summaries = Vec::new();
-            for plan in plans {
-                let steps = planner
-                    .get_steps(&core::Id { id: plan.id })
-                    .await
-                    .map_err(|e| {
-                        ErrorData::internal_error(format!("Failed to get steps: {e}"), None)
-                    })?;
-
-                let completed_steps = steps
-                    .iter()
-                    .filter(|s| s.status == StepStatus::Done)
-                    .count() as u32;
-                let total_steps = steps.len() as u32;
-
-                let summary =
-                    beacon_core::models::PlanSummary::from_plan(plan, total_steps, completed_steps);
-                plan_summaries.push(summary);
-            }
-
             let title = if inner_params.archived {
                 "Archived Plans"
             } else {
@@ -498,8 +468,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let mut plan = planner
-            .get_plan(inner_params)
+        let plan = handle_show_plan(&planner, inner_params)
             .await
             .map_err(|e| to_mcp_error("Failed to get plan", e))?
             .ok_or_else(|| {
@@ -508,11 +477,6 @@ impl BeaconMcpServer {
                     None,
                 )
             })?;
-
-        plan.steps = planner
-            .get_steps(inner_params)
-            .await
-            .map_err(|e| to_mcp_error("Failed to get steps", e))?;
 
         Ok(CallToolResult::success(vec![Content::text(
             plan.to_string(),
@@ -528,10 +492,15 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        planner
-            .archive_plan(inner_params)
+        let _archived_plan = handle_archive_plan(&planner, inner_params)
             .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to archive plan: {e}"), None))?;
+            .map_err(|e| ErrorData::internal_error(format!("Failed to archive plan: {e}"), None))?
+            .ok_or_else(|| {
+                ErrorData::internal_error(
+                    format!("Plan with ID {} not found", inner_params.id),
+                    None,
+                )
+            })?;
 
         let result = OperationStatus::success(format!(
             "Archived plan with ID {}. Use 'unarchive_plan' to restore it.",
@@ -551,13 +520,47 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        planner.unarchive_plan(inner_params).await.map_err(|e| {
-            ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None)
-        })?;
+        let _unarchived_plan = handle_unarchive_plan(&planner, inner_params)
+            .await
+            .map_err(|e| ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None))?
+            .ok_or_else(|| {
+                ErrorData::internal_error(
+                    format!("Plan with ID {} not found", inner_params.id),
+                    None,
+                )
+            })?;
 
         let result = OperationStatus::success(format!(
             "Unarchived plan with ID {}. Plan is now active again.",
             inner_params.id
+        ));
+        Ok(CallToolResult::success(vec![Content::text(
+            result.to_string(),
+        )]))
+    }
+
+    #[tool(
+        name = "delete_plan",
+        description = "Permanently delete a plan and all its associated steps from the database. This operation cannot be undone. Use with caution - consider archiving instead if you might need the plan later."
+    )]
+    async fn delete_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
+        debug!("delete_plan: {:?}", params);
+        let planner = self.planner.lock().await;
+        let inner_params = params.as_ref();
+
+        let deleted_plan = handle_delete_plan(&planner, inner_params)
+            .await
+            .map_err(|e| ErrorData::internal_error(format!("Failed to delete plan: {e}"), None))?
+            .ok_or_else(|| {
+                ErrorData::internal_error(
+                    format!("Plan with ID {} not found", inner_params.id),
+                    None,
+                )
+            })?;
+
+        let result = OperationStatus::success(format!(
+            "Permanently deleted plan '{}' (ID: {}). This action cannot be undone.",
+            deleted_plan.title, inner_params.id
         ));
         Ok(CallToolResult::success(vec![Content::text(
             result.to_string(),
@@ -573,29 +576,11 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
+        let plan_summaries = handle_search_plans(&planner, inner_params)
+            .await
+            .map_err(|e| ErrorData::internal_error(format!("Failed to search plans: {e}"), None))?;
 
-        // Use the directory-specific search method which respects archived status
-        let plans = if inner_params.archived {
-            // For archived plans, search all plans and filter by directory
-            let filter = Some(PlanFilter {
-                status: Some(PlanStatus::Archived),
-                directory: Some(inner_params.directory.clone()),
-                ..Default::default()
-            });
-            planner.list_plans(filter).await.map_err(|e| {
-                ErrorData::internal_error(format!("Failed to search plans: {e}"), None)
-            })?
-        } else {
-            // For active plans, use the existing directory search
-            planner
-                .search_plans_by_directory(inner_params)
-                .await
-                .map_err(|e| {
-                    ErrorData::internal_error(format!("Failed to search plans: {e}"), None)
-                })?
-        };
-
-        let result = if plans.is_empty() {
+        let result = if plan_summaries.is_empty() {
             let status_text = if inner_params.archived {
                 "archived"
             } else {
@@ -619,15 +604,21 @@ impl BeaconMcpServer {
                 inner_params.directory
             )
             .unwrap();
-            for plan in plans {
-                writeln!(result, "- **{}** (ID: {})", plan.title, plan.id).unwrap();
-                if let Some(desc) = &plan.description {
+            for summary in plan_summaries {
+                writeln!(result, "- **{}** (ID: {})", summary.title, summary.id).unwrap();
+                if let Some(desc) = &summary.description {
                     writeln!(result, "  Description: {desc}").unwrap();
                 }
-                if let Some(dir) = &plan.directory {
+                if let Some(dir) = &summary.directory {
                     writeln!(result, "  Directory: {dir}").unwrap();
                 }
-                writeln!(result, "  Status: {}", plan.status.as_str()).unwrap();
+                writeln!(result, "  Status: {}", summary.status.as_str()).unwrap();
+                writeln!(
+                    result,
+                    "  Steps: {}/{}",
+                    summary.completed_steps, summary.total_steps
+                )
+                .unwrap();
             }
             result
         };
@@ -644,8 +635,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let step = planner
-            .add_step(inner_params)
+        let step = handle_add_step(&planner, inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to add step: {e}"), None))?;
 
@@ -664,8 +654,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let step = planner
-            .insert_step(inner_params)
+        let step = handle_insert_step(&planner, inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
 
@@ -684,8 +673,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        planner
-            .swap_steps(inner_params)
+        handle_swap_steps(&planner, inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to swap steps: {e}"), None))?;
 
@@ -723,49 +711,18 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let mut messages = Vec::new();
-
-        // Parse status if provided using FromStr
-        let step_status = if let Some(status_str) = &inner_params.status {
-            Some(StepStatus::from_str(status_str).map_err(|_| {
+        let _updated_step = handle_update_step(&planner, inner_params)
+            .await
+            .map_err(|e| to_mcp_error("Failed to update step", e))?
+            .ok_or_else(|| {
                 ErrorData::internal_error(
-                    format!(
-                        "Invalid status: {status_str}. Must be 'todo', 'inprogress', or 'done'"
-                    ),
+                    format!("Step with ID {} not found", inner_params.id),
                     None,
                 )
-            })?)
-        } else {
-            None
-        };
+            })?;
 
-        // Validate result requirement for done status
-        if let Some(StepStatus::Done) = step_status {
-            if inner_params.result.is_none() {
-                return Err(ErrorData::internal_error(
-                    "Result description is required when marking a step as done. Please provide a 'result' field describing what was accomplished.".to_string(),
-                    None,
-                ));
-            }
-        }
-
-        // Update all fields in a single call
-        planner
-            .update_step(
-                inner_params.id,
-                UpdateStepRequest {
-                    title: inner_params.title.clone(),
-                    description: inner_params.description.clone(),
-                    acceptance_criteria: inner_params.acceptance_criteria.clone(),
-                    references: inner_params.references.clone(),
-                    status: step_status,
-                    result: inner_params.result.clone(),
-                },
-            )
-            .await
-            .map_err(|e| to_mcp_error("Failed to update step", e))?;
-
-        // Build update messages
+        // Build update messages based on what was provided
+        let mut messages = Vec::new();
         if inner_params.status.is_some() {
             messages.push(format!(
                 "Updated status to '{}'",
@@ -803,8 +760,7 @@ impl BeaconMcpServer {
 
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
-        let step = planner
-            .get_step(inner_params)
+        let step = handle_show_step(&planner, inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to get step: {e}"), None))?
             .ok_or_else(|| {
@@ -829,7 +785,7 @@ impl BeaconMcpServer {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
 
-        match planner.claim_step(inner_params).await {
+        match handle_claim_step(&planner, inner_params).await {
             Ok(true) => {
                 let message = format!(
                     "Successfully claimed step {} - it is now marked as 'in progress'\n\n<system-reminder>\nLaunch a focused subagent for this step. Once completed, use `update_step` with the detailed results of what was accomplished.\n</system-reminder>",
@@ -839,11 +795,14 @@ impl BeaconMcpServer {
             }
             Ok(false) => {
                 // Step was not in todo status, get current status
-                let step = planner.get_step(inner_params).await.map_err(|e| {
-                    ErrorData::internal_error(format!("Failed to get step: {e}"), None)
-                })?;
+                let step = handle_show_step(&planner, inner_params)
+                    .await
+                    .map_err(|e| {
+                        ErrorData::internal_error(format!("Failed to get step: {e}"), None)
+                    })?;
 
                 if let Some(step) = step {
+                    use beacon_core::models::StepStatus;
                     let status_description = match step.status {
                         StepStatus::InProgress => "already in progress",
                         StepStatus::Done => "already completed",
@@ -1009,7 +968,7 @@ impl ServerHandler for BeaconMcpServer {
 - Add references (URLs, files) to steps for quick access to resources
 
 ## Tool Categories
-- **Plan Management**: create_plan, list_plans, show_plan, archive_plan, unarchive_plan, search_plans
+- **Plan Management**: create_plan, list_plans, show_plan, archive_plan, unarchive_plan, delete_plan, search_plans
 - **Step Management**: add_step, insert_step, update_step, show_step, claim_step, swap_steps
 
 ## Concurrency Support

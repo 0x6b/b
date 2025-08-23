@@ -185,6 +185,22 @@ impl From<UnarchivePlanArgs> for Id {
     }
 }
 
+/// Delete a plan permanently
+#[derive(Args)]
+pub struct DeletePlanArgs {
+    /// ID of the plan to delete
+    pub id: u64,
+    /// Confirm the deletion (required to prevent accidental deletion)
+    #[arg(long)]
+    pub confirm: bool,
+}
+
+impl From<DeletePlanArgs> for Id {
+    fn from(val: DeletePlanArgs) -> Self {
+        Id { id: val.id }
+    }
+}
+
 /// Search for plans by directory
 #[derive(Args)]
 pub struct SearchPlansArgs {
@@ -214,6 +230,8 @@ pub enum PlanCommands {
     Archive(ArchivePlanArgs),
     /// Unarchive a plan
     Unarchive(UnarchivePlanArgs),
+    /// Delete a plan permanently
+    Delete(DeletePlanArgs),
     /// Search for plans by directory
     Search(SearchPlansArgs),
 }
