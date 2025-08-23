@@ -70,9 +70,6 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub no_color: bool,
 
-    /// Output format
-    #[arg(short, long, default_value = "text", global = true)]
-    pub format: OutputFormat,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -382,19 +379,3 @@ impl std::fmt::Display for StepStatusArg {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub enum OutputFormat {
-    /// Human-readable text output
-    Text,
-    /// JSON output
-    Json,
-}
-
-impl std::fmt::Display for OutputFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OutputFormat::Text => write!(f, "text"),
-            OutputFormat::Json => write!(f, "json"),
-        }
-    }
-}
