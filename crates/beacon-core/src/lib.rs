@@ -53,7 +53,6 @@ pub mod display;
 pub mod error;
 pub mod handlers;
 pub mod models;
-pub mod operations;
 pub mod params;
 pub mod planner;
 
@@ -72,9 +71,6 @@ pub use handlers::{
 pub use models::{
     format_datetime, CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
     UpdateStepRequest,
-};
-pub use operations::{
-    create_directory_filter, create_plan_filter, create_update_request, validate_step_update,
 };
 pub use params::{
     CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
