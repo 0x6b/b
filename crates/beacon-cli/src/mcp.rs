@@ -48,11 +48,29 @@ use tracing::{debug, info};
 /// Provides JSON deserialization and schema generation for any parameter type,
 /// eliminating the need for individual wrapper structs while maintaining
 /// the same functionality and type safety.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Deserialize)]
 #[serde(transparent)]
-struct McpParams<T>(T);
+struct McpParams<T>(T)
+where
+    T: JsonSchema;
 
-impl<T> AsRef<T> for McpParams<T> {
+impl<T> JsonSchema for McpParams<T>
+where
+    T: JsonSchema,
+{
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        T::schema_name()
+    }
+
+    fn json_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        T::json_schema(gen)
+    }
+}
+
+impl<T> AsRef<T> for McpParams<T>
+where
+    T: JsonSchema,
+{
     fn as_ref(&self) -> &T {
         &self.0
     }
@@ -557,14 +575,13 @@ impl BeaconMcpServer {
             writeln!(result).unwrap();
             writeln!(result, "## Steps").unwrap();
             writeln!(result).unwrap();
-            for (index, step) in steps.iter().enumerate() {
-                let position = index + 1;
+            for step in steps.iter() {
                 let status_text = match step.status {
                     StepStatus::Done => "done",
                     StepStatus::InProgress => "in progress",
                     StepStatus::Todo => "todo",
                 };
-                writeln!(result, "### {}. {} ({})", position, step.title, status_text).unwrap();
+                writeln!(result, "### {}. {} ({})", step.id, step.title, status_text).unwrap();
                 writeln!(result).unwrap();
 
                 if let Some(desc) = &step.description {
@@ -1185,6 +1202,7 @@ pub async fn run_stdio_server(server: BeaconMcpServer) -> Result<()> {
     use rmcp::{transport::stdio, ServiceExt};
 
     info!("Starting Beacon MCP server on stdio");
+    debug!("Server created with {} tools", server.tool_router.list_all().len());
 
     let service = server.serve(stdio()).await.inspect_err(|e| {
         tracing::error!("serving error: {e:?}");
