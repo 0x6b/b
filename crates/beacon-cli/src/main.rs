@@ -8,7 +8,8 @@ mod mcp;
 mod renderer;
 
 use anyhow::{Context, Result};
-use beacon_core::{PlanFilter, PlanStatus, PlannerBuilder, StepStatus};
+use beacon_core::{CreateResult, OperationStatus, PlanFilter, PlanList, PlanStatus, PlannerBuilder, StepStatus, UpdateResult};
+use std::str::FromStr;
 use clap::Parser;
 use cli::{Cli, Commands, PlanCommands, StepCommands};
 use log::{debug, info};
@@ -82,13 +83,13 @@ async fn handle_step_command(
         Update(args) => {
             let params: beacon_core::params::UpdateStep = args.into();
 
-            // Convert status string back to StepStatus enum for the handler
-            let status = params.status.as_ref().map(|s| match s.as_str() {
-                "todo" => StepStatus::Todo,
-                "inprogress" => StepStatus::InProgress,
-                "done" => StepStatus::Done,
-                _ => StepStatus::Todo, // Default fallback
-            });
+            // Parse status using FromStr implementation
+            let status = params.status.as_ref()
+                .map(|s| StepStatus::from_str(s)
+                    .unwrap_or_else(|_| {
+                        eprintln!("Warning: Invalid status '{}', defaulting to 'todo'", s);
+                        StepStatus::Todo
+                    }));
 
             handle_step_update(planner, &params, status, renderer).await
         }
@@ -108,8 +109,8 @@ async fn handle_plan_create(
         .await
         .context("Failed to create plan")?;
 
-    let markdown = format!("# Plan Created\n\n{plan}");
-    renderer.render(&markdown)?;
+    let result = CreateResult::new(plan, "plan");
+    renderer.render(&result.to_string())?;
 
     Ok(())
 }
@@ -139,40 +140,33 @@ async fn handle_plan_list(
         .await
         .context("Failed to list plans")?;
 
-    let markdown = if plans.is_empty() {
-        if params.archived {
-            "# No archived plans found".to_string()
-        } else {
-            "# No active plans found".to_string()
-        }
+    // Convert plans to PlanSummary objects
+    let mut plan_summaries = Vec::new();
+    for plan in plans {
+        let steps = planner
+            .get_steps(&beacon_core::params::Id { id: plan.id })
+            .await
+            .context("Failed to get steps for plan")?;
+
+        let completed_steps = steps
+            .iter()
+            .filter(|s| s.status == StepStatus::Done)
+            .count() as u32;
+        let total_steps = steps.len() as u32;
+
+        let plan_summary =
+            beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
+        plan_summaries.push(plan_summary);
+    }
+
+    let title = if params.archived {
+        "Archived Plans"
     } else {
-        let mut result = if params.archived {
-            "# Archived Plans\n\n".to_string()
-        } else {
-            "# Active Plans\n\n".to_string()
-        };
-
-        for plan in plans {
-            let steps = planner
-                .get_steps(&beacon_core::params::Id { id: plan.id })
-                .await
-                .context("Failed to get steps for plan")?;
-
-            let completed_steps = steps
-                .iter()
-                .filter(|s| s.status == StepStatus::Done)
-                .count() as u32;
-            let total_steps = steps.len() as u32;
-
-            let plan_summary =
-                beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
-
-            result.push_str(&format!("{plan_summary}"));
-        }
-        result
+        "Active Plans"
     };
 
-    renderer.render(&markdown)?;
+    let plan_list = PlanList::with_title(&plan_summaries, title);
+    renderer.render(&plan_list.to_string())?;
 
     Ok(())
 }
@@ -194,7 +188,7 @@ async fn handle_plan_show(
         .await
         .context("Failed to get steps")?;
 
-    renderer.render(&format!("{plan}"))?;
+    renderer.render(&plan.to_string())?;
 
     Ok(())
 }
@@ -217,27 +211,24 @@ async fn handle_plan_archive(
         .await
         .context("Failed to get steps")?;
 
-    // Show what will be archived
-    let mut markdown = format!("Plan to archive: {} (ID: {})", plan.title, params.id);
-    if !steps.is_empty() {
-        markdown.push_str(&format!("\nThis plan has {} step(s).", steps.len()));
-    }
-
     planner
         .archive_plan(params)
         .await
         .with_context(|| format!("Failed to archive plan {}", params.id))?;
 
-    markdown.push_str(&format!(
-        "\n\nArchived plan: {} (ID: {})",
-        plan.title, params.id
-    ));
-    markdown.push_str(&format!(
-        "\nUse 'beacon plan unarchive {}' to restore this plan.",
-        params.id
-    ));
+    let step_info = if !steps.is_empty() {
+        format!(" with {} step(s)", steps.len())
+    } else {
+        String::new()
+    };
 
-    renderer.render(&markdown)?;
+    let message = format!(
+        "Archived plan '{}' (ID: {}){step_info}. Use 'beacon plan unarchive {}' to restore.",
+        plan.title, params.id, params.id
+    );
+
+    let status = OperationStatus::success(message);
+    renderer.render(&status.to_string())?;
     Ok(())
 }
 
@@ -252,8 +243,9 @@ async fn handle_plan_unarchive(
         .await
         .with_context(|| format!("Failed to unarchive plan {}", params.id))?;
 
-    let markdown = format!("Unarchived plan with ID: {}", params.id);
-    renderer.render(&markdown)?;
+    let message = format!("Unarchived plan with ID: {}", params.id);
+    let status = OperationStatus::success(message);
+    renderer.render(&status.to_string())?;
     Ok(())
 }
 
@@ -281,44 +273,34 @@ async fn handle_plan_search(
             .context("Failed to search plans")?
     };
 
+    // Convert plans to PlanSummary objects
+    let mut plan_summaries = Vec::new();
+    for plan in plans {
+        let steps = planner
+            .get_steps(&beacon_core::params::Id { id: plan.id })
+            .await
+            .context("Failed to get steps for plan")?;
+
+        let completed_steps = steps
+            .iter()
+            .filter(|s| s.status == StepStatus::Done)
+            .count() as u32;
+        let total_steps = steps.len() as u32;
+
+        let plan_summary =
+            beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
+        plan_summaries.push(plan_summary);
+    }
+
     let status_text = if params.archived {
-        "archived"
+        "ARCHIVED"
     } else {
-        "active"
+        "ACTIVE"
     };
-    let markdown = if plans.is_empty() {
-        format!(
-            "# No {} plans found in directory: {}",
-            status_text, params.directory
-        )
-    } else {
-        let mut result = format!(
-            "# {} plans in directory: {}\n\n",
-            status_text.to_uppercase(),
-            params.directory
-        );
+    let title = format!("{status_text} plans in directory: {}", params.directory);
 
-        for plan in plans {
-            let steps = planner
-                .get_steps(&beacon_core::params::Id { id: plan.id })
-                .await
-                .context("Failed to get steps for plan")?;
-
-            let completed_steps = steps
-                .iter()
-                .filter(|s| s.status == StepStatus::Done)
-                .count() as u32;
-            let total_steps = steps.len() as u32;
-
-            let plan_summary =
-                beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
-
-            result.push_str(&format!("{plan_summary}"));
-        }
-        result
-    };
-
-    renderer.render(&markdown)?;
+    let plan_list = PlanList::with_title(&plan_summaries, &title);
+    renderer.render(&plan_list.to_string())?;
 
     Ok(())
 }
@@ -334,21 +316,8 @@ async fn handle_step_add(
         .await
         .with_context(|| format!("Failed to add step to plan {}", params.plan_id))?;
 
-    let mut markdown = format!(
-        "Added step: {} (ID: {})\nAdded to plan: {}",
-        step.title, step.id, step.plan_id
-    );
-    if let Some(desc) = &step.description {
-        markdown.push_str(&format!("\nDescription: {desc}"));
-    }
-    if let Some(criteria) = &step.acceptance_criteria {
-        markdown.push_str(&format!("\nAcceptance criteria: {criteria}"));
-    }
-    if !step.references.is_empty() {
-        markdown.push_str(&format!("\nReferences: {}", step.references.join(", ")));
-    }
-
-    renderer.render(&markdown)?;
+    let result = CreateResult::new(step, "step");
+    renderer.render(&result.to_string())?;
 
     Ok(())
 }
@@ -366,21 +335,8 @@ async fn handle_step_insert(
         )
     })?;
 
-    let mut markdown = format!(
-        "Inserted step: {} (ID: {})\nInserted at position: {} in plan: {}",
-        step.title, step.id, step.order, params.step.plan_id
-    );
-    if let Some(desc) = &step.description {
-        markdown.push_str(&format!("\nDescription: {desc}"));
-    }
-    if let Some(criteria) = &step.acceptance_criteria {
-        markdown.push_str(&format!("\nAcceptance criteria: {criteria}"));
-    }
-    if !step.references.is_empty() {
-        markdown.push_str(&format!("\nReferences: {}", step.references.join(", ")));
-    }
-
-    renderer.render(&markdown)?;
+    let result = CreateResult::new(step, "step");
+    renderer.render(&result.to_string())?;
 
     Ok(())
 }
@@ -440,26 +396,33 @@ async fn handle_step_update(
         .await
         .with_context(|| format!("Failed to update step {}", params.id))?;
 
-    // Build update message
-    let mut updates = Vec::new();
+    // Get the updated step to display
+    let updated_step = planner
+        .get_step(&beacon_core::params::Id { id: params.id })
+        .await
+        .context("Failed to get updated step")?
+        .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found after update", params.id))?;
+
+    // Build list of changes made
+    let mut changes = Vec::new();
     if has_status {
-        updates.push("status");
+        changes.push("status".to_string());
     }
     if has_title {
-        updates.push("title");
+        changes.push("title".to_string());
     }
     if has_description {
-        updates.push("description");
+        changes.push("description".to_string());
     }
     if has_criteria {
-        updates.push("acceptance criteria");
+        changes.push("acceptance criteria".to_string());
     }
     if has_references {
-        updates.push("references");
+        changes.push("references".to_string());
     }
 
-    let markdown = format!("Updated step {}: {}", params.id, updates.join(", "));
-    renderer.render(&markdown)?;
+    let result = UpdateResult::with_changes(updated_step, "step", changes);
+    renderer.render(&result.to_string())?;
 
     Ok(())
 }
@@ -476,50 +439,7 @@ async fn handle_step_show(
         .context("Failed to get step")?
         .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
 
-    let mut markdown = format!("# Step {} Details\n\nTitle: {}\n", step.id, step.title);
-
-    let status_icon = match step.status {
-        StepStatus::Done => "✓ Done",
-        StepStatus::InProgress => "➤ In Progress",
-        StepStatus::Todo => "○ Todo",
-    };
-    markdown.push_str(&format!(
-        "Status: {}\nPlan ID: {}\n",
-        status_icon, step.plan_id
-    ));
-
-    if let Some(desc) = &step.description {
-        markdown.push_str(&format!("\n## Description\n{}\n", desc));
-    }
-
-    if let Some(criteria) = &step.acceptance_criteria {
-        markdown.push_str(&format!("\n## Acceptance Criteria\n{}\n", criteria));
-    }
-
-    // Show result only for completed steps
-    if step.status == StepStatus::Done {
-        if let Some(result) = &step.result {
-            markdown.push_str(&format!("\n## Result\n{}\n", result));
-        }
-    }
-
-    if !step.references.is_empty() {
-        markdown.push_str("\n## References\n");
-        markdown.push_str(
-            &step
-                .references
-                .iter()
-                .map(|reference| format!("- {}\n", reference))
-                .collect::<String>(),
-        );
-    }
-
-    markdown.push_str(&format!(
-        "\nCreated: {}\nUpdated: {}",
-        step.created_at, step.updated_at
-    ));
-
-    renderer.render(&markdown)?;
+    renderer.render(&step.to_string())?;
 
     Ok(())
 }
@@ -537,11 +457,12 @@ async fn handle_step_swap(
         )
     })?;
 
-    let markdown = format!(
+    let message = format!(
         "Swapped order of steps {} and {}",
         params.step1_id, params.step2_id
     );
-    renderer.render(&markdown)?;
+    let status = OperationStatus::success(message);
+    renderer.render(&status.to_string())?;
 
     Ok(())
 }
