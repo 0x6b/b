@@ -8,18 +8,12 @@ use std::{fmt::Write, future::Future, sync::Arc};
 
 use anyhow::Result;
 use beacon_core::{
-    CreatePlanParams as CoreCreatePlanParams,
-    IdParams as CoreIdParams,
-    InsertStepParams as CoreInsertStepParams,
-    ListPlansParams as CoreListPlansParams,
+    params as core,
     PlanFilter,
     PlanStatus,
     Planner,
-    SearchPlansParams as CoreSearchPlansParams,
-    StepCreateParams as CoreStepCreateParams,
     StepStatus,
-    SwapStepsParams as CoreSwapStepsParams,
-    UpdateStepParams as CoreUpdateStepParams,
+    UpdateStepRequest,
 };
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
@@ -37,11 +31,11 @@ use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 // ============================================================================
-// Parameter Wrapper Implementations
+// Generic Parameter Wrapper Implementation
 // ============================================================================
 //
-// These wrapper structs implement the parameter wrapper pattern by:
-// 1. Wrapping core parameter types in transparent serde containers
+// This generic wrapper struct implements the parameter wrapper pattern by:
+// 1. Wrapping any core parameter type in a transparent serde container
 // 2. Adding MCP-specific derives (Deserialize, JsonSchema) for JSON handling
 // 3. Keeping the core types clean of framework dependencies
 //
@@ -49,116 +43,30 @@ use tracing::{debug, info};
 // passes through directly to the wrapped core type, maintaining API compatibility
 // while adding the necessary trait implementations for MCP protocol handling.
 
-/// MCP wrapper for core IdParams with serde integration
+/// Generic MCP wrapper for core parameter types with serde integration
 ///
-/// Provides JSON deserialization and schema generation for operations that
-/// require only an ID parameter (show_plan, archive_plan, show_step, etc.).
+/// Provides JSON deserialization and schema generation for any parameter type,
+/// eliminating the need for individual wrapper structs while maintaining
+/// the same functionality and type safety.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(transparent)]
-struct IdParams(CoreIdParams);
+struct McpParams<T>(T);
 
-impl AsRef<CoreIdParams> for IdParams {
-    fn as_ref(&self) -> &CoreIdParams {
+impl<T> AsRef<T> for McpParams<T> {
+    fn as_ref(&self) -> &T {
         &self.0
     }
 }
 
-/// MCP wrapper for core CreatePlanParams with serde integration
-///
-/// Enables JSON handling for plan creation requests with title, description,
-/// and directory parameters while maintaining the core type's simplicity.
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(transparent)]
-struct CreatePlanParams(CoreCreatePlanParams);
-
-impl AsRef<CoreCreatePlanParams> for CreatePlanParams {
-    fn as_ref(&self) -> &CoreCreatePlanParams {
-        &self.0
-    }
-}
-
-/// MCP wrapper for core ListPlansParams with serde integration
-///
-/// Provides JSON support for plan listing requests with archived/active filtering.
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(transparent)]
-struct ListPlansParams(CoreListPlansParams);
-
-impl AsRef<CoreListPlansParams> for ListPlansParams {
-    fn as_ref(&self) -> &CoreListPlansParams {
-        &self.0
-    }
-}
-
-/// MCP wrapper for core SearchPlansParams with serde integration
-///
-/// Enables JSON handling for directory-based plan search operations with
-/// archived status filtering capabilities.
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(transparent)]
-struct SearchPlansParams(CoreSearchPlansParams);
-
-impl AsRef<CoreSearchPlansParams> for SearchPlansParams {
-    fn as_ref(&self) -> &CoreSearchPlansParams {
-        &self.0
-    }
-}
-
-/// MCP wrapper for core StepCreateParams with serde integration
-///
-/// Provides JSON deserialization for step creation with title, description,
-/// acceptance criteria, and references while preserving the core logic separation.
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(transparent)]
-struct StepCreateParams(CoreStepCreateParams);
-
-impl AsRef<CoreStepCreateParams> for StepCreateParams {
-    fn as_ref(&self) -> &CoreStepCreateParams {
-        &self.0
-    }
-}
-
-/// MCP wrapper for core InsertStepParams with serde integration
-///
-/// Enables JSON handling for positioned step insertion, combining step creation
-/// parameters with position information for precise placement in plans.
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(transparent)]
-struct InsertStepParams(CoreInsertStepParams);
-
-impl AsRef<CoreInsertStepParams> for InsertStepParams {
-    fn as_ref(&self) -> &CoreInsertStepParams {
-        &self.0
-    }
-}
-
-/// MCP wrapper for core SwapStepsParams with serde integration
-///
-/// Provides JSON support for step reordering operations by swapping two steps
-/// within the same plan while maintaining referential integrity.
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(transparent)]
-struct SwapStepsParams(CoreSwapStepsParams);
-
-impl AsRef<CoreSwapStepsParams> for SwapStepsParams {
-    fn as_ref(&self) -> &CoreSwapStepsParams {
-        &self.0
-    }
-}
-
-/// MCP wrapper for core UpdateStepParams with serde integration
-///
-/// Enables JSON handling for step updates including status changes, content
-/// modifications, and result documentation when marking steps as complete.
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(transparent)]
-struct UpdateStepParams(CoreUpdateStepParams);
-
-impl AsRef<CoreUpdateStepParams> for UpdateStepParams {
-    fn as_ref(&self) -> &CoreUpdateStepParams {
-        &self.0
-    }
-}
+// Type aliases for cleaner usage in function signatures
+type Id = McpParams<core::Id>;
+type CreatePlan = McpParams<core::CreatePlan>;
+type ListPlans = McpParams<core::ListPlans>;
+type SearchPlans = McpParams<core::SearchPlans>;
+type StepCreate = McpParams<core::StepCreate>;
+type InsertStep = McpParams<core::InsertStep>;
+type SwapSteps = McpParams<core::SwapSteps>;
+type UpdateStep = McpParams<core::UpdateStep>;
 
 /// Helper to convert planner errors to MCP errors
 fn to_mcp_error(message: &str, error: beacon_core::PlannerError) -> ErrorData {
@@ -484,7 +392,7 @@ impl BeaconMcpServer {
         name = "create_plan",
         description = "Create a new task plan to organize work. Provide a clear title (required), optional detailed description for context, and optional directory to associate with specific project location. Returns the new plan ID for adding steps."
     )]
-    async fn create_plan(&self, Parameters(params): Parameters<CreatePlanParams>) -> McpResult {
+    async fn create_plan(&self, Parameters(params): Parameters<CreatePlan>) -> McpResult {
         debug!("create_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -509,7 +417,7 @@ impl BeaconMcpServer {
         name = "list_plans",
         description = "List all task plans. Use archived=false (default) for active plans you're working on, or archived=true to see completed/hidden plans. Returns formatted list with IDs, titles, descriptions, and directories."
     )]
-    async fn list_plans(&self, Parameters(params): Parameters<ListPlansParams>) -> McpResult {
+    async fn list_plans(&self, Parameters(params): Parameters<ListPlans>) -> McpResult {
         debug!("list_plans: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -543,7 +451,7 @@ impl BeaconMcpServer {
             // Get step counts for each plan
             let mut plans_with_progress = Vec::new();
             for plan in plans {
-                let steps = planner.get_steps(&beacon_core::params::IdParams { id: plan.id }).await.map_err(|e| {
+                let steps = planner.get_steps(&core::Id { id: plan.id }).await.map_err(|e| {
                     ErrorData::internal_error(format!("Failed to get steps: {e}"), None)
                 })?;
 
@@ -596,7 +504,7 @@ impl BeaconMcpServer {
         name = "show_plan",
         description = "Display complete details of a specific plan including all its steps, their status (todo/done), descriptions, and acceptance criteria. Use the plan ID to retrieve. Essential for understanding project scope and progress."
     )]
-    async fn show_plan(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
+    async fn show_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("show_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -699,7 +607,7 @@ impl BeaconMcpServer {
         name = "archive_plan",
         description = "Archive a completed or inactive plan to hide it from the active list. Archived plans are preserved and can be restored later with unarchive_plan. Use when a project is finished or temporarily on hold."
     )]
-    async fn archive_plan(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
+    async fn archive_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("archive_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -720,7 +628,7 @@ impl BeaconMcpServer {
         name = "unarchive_plan",
         description = "Restore an archived plan back to the active list. Use when resuming work on a previously archived project or when you need to reference completed work. The plan and all its steps are preserved exactly as they were."
     )]
-    async fn unarchive_plan(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
+    async fn unarchive_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("unarchive_plan: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -740,7 +648,7 @@ impl BeaconMcpServer {
         name = "search_plans",
         description = "Find all plans associated with a specific directory path. Use archived=false (default) for active plans you're working on, or archived=true to see completed/hidden plans for the directory. Useful for discovering existing plans in a project folder or organizing plans by location."
     )]
-    async fn search_plans(&self, Parameters(params): Parameters<SearchPlansParams>) -> McpResult {
+    async fn search_plans(&self, Parameters(params): Parameters<SearchPlans>) -> McpResult {
         debug!("search_plans: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -811,7 +719,7 @@ impl BeaconMcpServer {
         name = "add_step",
         description = "Add a new step to an existing plan. Requires plan_id and title. Optionally include: description (detailed info), acceptance_criteria (completion requirements), and references (URLs/files). Steps start with 'todo' status and are added at the end of the plan."
     )]
-    async fn add_step(&self, Parameters(params): Parameters<StepCreateParams>) -> McpResult {
+    async fn add_step(&self, Parameters(params): Parameters<StepCreate>) -> McpResult {
         debug!("add_step: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -845,7 +753,7 @@ impl BeaconMcpServer {
         name = "insert_step",
         description = "Insert a new step at a specific position in a plan's step order. Position is 0-indexed (0 = first position). All existing steps at or after this position will be shifted down. Useful for adding prerequisite tasks or reorganizing workflow."
     )]
-    async fn insert_step(&self, Parameters(params): Parameters<InsertStepParams>) -> McpResult {
+    async fn insert_step(&self, Parameters(params): Parameters<InsertStep>) -> McpResult {
         debug!("insert_step: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -879,7 +787,7 @@ impl BeaconMcpServer {
         name = "swap_steps",
         description = "Swap the order of two steps within the same plan. This is useful for reordering tasks without having to delete and recreate them. Both steps must belong to the same plan. The operation preserves all step properties and only changes their order."
     )]
-    async fn swap_steps(&self, Parameters(params): Parameters<SwapStepsParams>) -> McpResult {
+    async fn swap_steps(&self, Parameters(params): Parameters<SwapSteps>) -> McpResult {
         debug!("swap_steps: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -916,7 +824,7 @@ impl BeaconMcpServer {
                       linting, and deployment to staging. All checks passing on main branch.\"
         }"
     )]
-    async fn update_step(&self, Parameters(params): Parameters<UpdateStepParams>) -> McpResult {
+    async fn update_step(&self, Parameters(params): Parameters<UpdateStep>) -> McpResult {
         debug!("update_step: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -956,7 +864,7 @@ impl BeaconMcpServer {
         planner
             .update_step(
                 inner_params.id,
-                beacon_core::UpdateStepRequest {
+                UpdateStepRequest {
                     title: inner_params.title.clone(),
                     description: inner_params.description.clone(),
                     acceptance_criteria: inner_params.acceptance_criteria.clone(),
@@ -998,7 +906,7 @@ impl BeaconMcpServer {
         name = "show_step",
         description = "View detailed information about a specific step including its status, timestamps, description, acceptance criteria, and references. Use when you need to focus on a single step's details rather than the whole plan."
     )]
-    async fn show_step(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
+    async fn show_step(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("show_step: {:?}", params);
 
         let planner = self.planner.lock().await;
@@ -1064,7 +972,7 @@ impl BeaconMcpServer {
         name = "claim_step",
         description = "Atomically claim a step by transitioning it from 'todo' to 'inprogress' status. This prevents multiple agents from working on the same task simultaneously. Returns success if the step was claimed, or indicates if the step was already claimed or completed."
     )]
-    async fn claim_step(&self, Parameters(params): Parameters<IdParams>) -> McpResult {
+    async fn claim_step(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("claim_step: {:?}", params);
 
         let planner = self.planner.lock().await;
