@@ -1,36 +1,34 @@
-//! Display wrapper types for formatting different contexts.
+//! Display formatting functions and result types.
 //!
-//! This module provides wrapper types that implement Display for collections
-//! and operation results, enabling consistent formatting across different
+//! This module provides helper functions for formatting collections and wrapper types
+//! for operation results, enabling consistent formatting across different
 //! output contexts (lists, operations, etc.).
 //!
-//! # Architecture: Display Wrapper Pattern
+//! # Architecture: Display Functions and Wrappers
 //!
-//! The Display architecture follows a wrapper pattern that separates presentation
-//! logic from business logic. Instead of implementing Display directly on domain
-//! models, we use specialized wrapper types that can format the same data
-//! differently depending on context.
+//! The Display architecture combines direct Display implementations on domain models
+//! with formatting functions for collections and wrapper types for operation results.
+//! This approach provides both idiomatic Rust patterns and context-specific formatting.
 //!
 //! ```text
 //! ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-//! │  Domain Models  │    │ Display Wrapper │    │   Formatted     │
-//! │  (Plan, Step)   │───▶│    Types        │───▶│    Output       │
+//! │  Domain Models  │    │ Format Functions│    │   Formatted     │
+//! │  (Plan, Step)   │───▶│ & Result Types  │───▶│    Output       │
 //! │                 │    │                 │    │  (Terminal/MCP) │
 //! └─────────────────┘    └─────────────────┘    └─────────────────┘
 //! ```
 //!
 //! ## Benefits
 //!
-//! 1. **Context-Aware Formatting**: Same data can be formatted differently
-//!    (e.g., PlanList vs individual Plan display)
-//! 2. **Separation of Concerns**: Business logic in models, presentation in wrappers
-//! 3. **Composability**: Wrappers can be nested and combined
+//! 1. **Idiomatic Collections**: Helper functions format slices without wrapper overhead
+//! 2. **Separation of Concerns**: Business logic in models, presentation in functions
+//! 3. **Flexibility**: Functions can handle different contexts (titles, empty collections)
 //! 4. **Consistency**: All output goes through standardized display logic
 //!
-//! ## Wrapper Types
+//! ## Types and Functions
 //!
-//! - [`PlanList`]: Formats collections of plans with optional titles
-//! - [`StepList`]: Formats collections of steps with contextual information
+//! - [`format_plan_list`]: Formats collections of plans with optional titles
+//! - [`format_step_list`]: Formats collections of steps with optional titles
 //! - [`CreateResult`]: Formats creation operation results
 //! - [`UpdateResult`]: Formats update operation results with change tracking
 //! - [`DeleteResult`]: Formats deletion confirmations
@@ -41,7 +39,7 @@
 //! ### Basic List Formatting
 //!
 //! ```rust
-//! use beacon_core::display::PlanList;
+//! use beacon_core::display::format_plan_list;
 //! use beacon_core::models::{PlanSummary, PlanStatus};
 //! use jiff::Timestamp;
 //! 
@@ -61,13 +59,11 @@
 //! let plans = vec![plan];
 //! 
 //! // Format a collection of plans  
-//! let list = PlanList::new(&plans);
-//! let output = format!("{}", list);
+//! let output = format_plan_list(&plans, None);
 //! assert!(output.contains("My Project"));
 //! 
 //! // With a title header
-//! let titled_list = PlanList::with_title(&plans, "Active Plans");
-//! let titled_output = format!("{}", titled_list);
+//! let titled_output = format_plan_list(&plans, Some("Active Plans"));
 //! assert!(titled_output.contains("# Active Plans"));
 //! ```
 //!
@@ -97,7 +93,7 @@
 //! 
 //! // Format updates with change tracking
 //! let changes = vec!["Updated title".to_string(), "Added description".to_string()];
-//! let update_result = UpdateResult::with_changes(plan, "plan", changes);
+//! let update_result = UpdateResult::with_changes(plan, changes);
 //! let update_output = format!("{}", update_result);
 //! assert!(update_output.contains("Changes made:"));
 //! ```
@@ -127,177 +123,7 @@ use std::fmt;
 
 use crate::models::{Plan, PlanSummary, Step};
 
-/// Wrapper type for displaying a collection of plans as a formatted list.
-///
-/// This provides a consistent display format for plan collections,
-/// typically used when listing plans or showing search results.
-///
-/// The wrapper formats each plan with:
-/// - Plan title and ID
-/// - Progress indicator (completed/total steps)
-/// - Creation timestamp
-/// - Optional description and directory
-///
-/// # Examples
-///
-/// ```rust
-/// use beacon_core::display::PlanList;
-/// use beacon_core::models::{PlanSummary, PlanStatus};
-/// use jiff::Timestamp;
-///
-/// let plan = PlanSummary {
-///     id: 1,
-///     title: "My Project".to_string(),
-///     description: Some("A test project".to_string()),
-///     status: PlanStatus::Active,
-///     directory: Some("/home/user/project".to_string()),
-///     created_at: Timestamp::now(),
-///     updated_at: Timestamp::now(),
-///     total_steps: 5,
-///     completed_steps: 2,
-///     pending_steps: 3,
-/// };
-///
-/// let plans = vec![plan];
-/// let list = PlanList::with_title(&plans, "Active Projects");
-/// println!("{}", list);
-/// ```
-pub struct PlanList<'a> {
-    plans: &'a [PlanSummary],
-    title: Option<&'a str>,
-}
 
-impl<'a> PlanList<'a> {
-    /// Create a new PlanList wrapper.
-    pub fn new(plans: &'a [PlanSummary]) -> Self {
-        Self {
-            plans,
-            title: None,
-        }
-    }
-
-    /// Create a PlanList with a title header.
-    pub fn with_title(plans: &'a [PlanSummary], title: &'a str) -> Self {
-        Self {
-            plans,
-            title: Some(title),
-        }
-    }
-}
-
-impl<'a> fmt::Display for PlanList<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(title) = self.title {
-            writeln!(f, "# {title}")?;
-            writeln!(f)?;
-        }
-
-        if self.plans.is_empty() {
-            writeln!(f, "No plans found.")?;
-            return Ok(());
-        }
-
-        for plan in self.plans {
-            write!(f, "{plan}")?;
-        }
-
-        Ok(())
-    }
-}
-
-/// Wrapper type for displaying a collection of steps as a formatted list.
-///
-/// This provides a consistent display format for step collections,
-/// typically used when showing steps from a plan or filtered step results.
-///
-/// The wrapper can format steps in different contexts:
-/// - Within a plan (showing step position and status icons)
-/// - As a filtered list (optionally showing plan ID for each step)
-/// - With custom titles for grouped displays
-///
-/// # Examples
-///
-/// ```rust
-/// use beacon_core::display::StepList;
-/// use beacon_core::models::{Step, StepStatus};
-/// use jiff::Timestamp;
-///
-/// let step = Step {
-///     id: 1,
-///     plan_id: 42,
-///     title: "Complete setup".to_string(),
-///     description: Some("Set up the development environment".to_string()),
-///     acceptance_criteria: Some("All dependencies installed".to_string()),
-///     references: vec!["https://docs.example.com".to_string()],
-///     status: StepStatus::InProgress,
-///     result: None,
-///     order: 0,
-///     created_at: Timestamp::now(),
-///     updated_at: Timestamp::now(),
-/// };
-///
-/// let steps = vec![step];
-/// let list = StepList::with_plan_info(&steps, Some("Steps from Multiple Plans"));
-/// println!("{}", list);
-/// ```
-pub struct StepList<'a> {
-    steps: &'a [Step],
-    title: Option<&'a str>,
-    show_plan_info: bool,
-}
-
-impl<'a> StepList<'a> {
-    /// Create a new StepList wrapper.
-    pub fn new(steps: &'a [Step]) -> Self {
-        Self {
-            steps,
-            title: None,
-            show_plan_info: false,
-        }
-    }
-
-    /// Create a StepList with a title header.
-    pub fn with_title(steps: &'a [Step], title: &'a str) -> Self {
-        Self {
-            steps,
-            title: Some(title),
-            show_plan_info: false,
-        }
-    }
-
-    /// Create a StepList that includes plan information for each step.
-    pub fn with_plan_info(steps: &'a [Step], title: Option<&'a str>) -> Self {
-        Self {
-            steps,
-            title,
-            show_plan_info: true,
-        }
-    }
-}
-
-impl<'a> fmt::Display for StepList<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(title) = self.title {
-            writeln!(f, "# {title}")?;
-            writeln!(f)?;
-        }
-
-        if self.steps.is_empty() {
-            writeln!(f, "No steps found.")?;
-            return Ok(());
-        }
-
-        for step in self.steps {
-            if self.show_plan_info {
-                writeln!(f, "**Plan ID: {}**", step.plan_id)?;
-                writeln!(f)?;
-            }
-            write!(f, "{step}")?;
-        }
-
-        Ok(())
-    }
-}
 
 /// Wrapper type for displaying the result of create operations.
 ///
@@ -392,30 +218,27 @@ impl fmt::Display for CreateResult<Step> {
 ///     "Added result description".to_string(),
 /// ];
 ///
-/// let result = UpdateResult::with_changes(updated_step, "step", changes);
+/// let result = UpdateResult::with_changes(updated_step, changes);
 /// println!("{}", result);
 /// ```
 pub struct UpdateResult<T> {
     pub resource: T,
-    pub resource_type: &'static str,
     pub changes: Vec<String>,
 }
 
 impl<T> UpdateResult<T> {
     /// Create a new UpdateResult wrapper.
-    pub fn new(resource: T, resource_type: &'static str) -> Self {
+    pub fn new(resource: T) -> Self {
         Self {
             resource,
-            resource_type,
             changes: Vec::new(),
         }
     }
 
     /// Create an UpdateResult with a list of changes made.
-    pub fn with_changes(resource: T, resource_type: &'static str, changes: Vec<String>) -> Self {
+    pub fn with_changes(resource: T, changes: Vec<String>) -> Self {
         Self {
             resource,
-            resource_type,
             changes,
         }
     }
@@ -423,7 +246,7 @@ impl<T> UpdateResult<T> {
 
 impl fmt::Display for UpdateResult<Plan> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Updated {} with ID: {}", self.resource_type, self.resource.id)?;
+        writeln!(f, "Updated plan with ID: {}", self.resource.id)?;
         
         if !self.changes.is_empty() {
             writeln!(f)?;
@@ -440,7 +263,7 @@ impl fmt::Display for UpdateResult<Plan> {
 
 impl fmt::Display for UpdateResult<Step> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Updated {} with ID: {}", self.resource_type, self.resource.id)?;
+        writeln!(f, "Updated step with ID: {}", self.resource.id)?;
         
         if !self.changes.is_empty() {
             writeln!(f)?;
@@ -459,38 +282,26 @@ impl fmt::Display for UpdateResult<Step> {
 ///
 /// This provides consistent formatting for deletion results,
 /// including confirmation messages and resource identification.
-pub struct DeleteResult {
-    pub resource_id: u64,
-    pub resource_type: &'static str,
-    pub resource_title: Option<String>,
+pub struct DeleteResult<T> {
+    pub resource: T,
 }
 
-impl DeleteResult {
+impl<T> DeleteResult<T> {
     /// Create a new DeleteResult wrapper.
-    pub fn new(resource_id: u64, resource_type: &'static str) -> Self {
-        Self {
-            resource_id,
-            resource_type,
-            resource_title: None,
-        }
-    }
-
-    /// Create a DeleteResult with the resource title for better context.
-    pub fn with_title(resource_id: u64, resource_type: &'static str, title: String) -> Self {
-        Self {
-            resource_id,
-            resource_type,
-            resource_title: Some(title),
-        }
+    pub fn new(resource: T) -> Self {
+        Self { resource }
     }
 }
 
-impl fmt::Display for DeleteResult {
+impl fmt::Display for DeleteResult<Plan> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.resource_title {
-            Some(title) => writeln!(f, "Deleted {} '{}' (ID: {})", self.resource_type, title, self.resource_id),
-            None => writeln!(f, "Deleted {} with ID: {}", self.resource_type, self.resource_id),
-        }
+        writeln!(f, "Deleted plan '{}' (ID: {})", self.resource.title, self.resource.id)
+    }
+}
+
+impl fmt::Display for DeleteResult<Step> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Deleted step '{}' (ID: {})", self.resource.title, self.resource.id)
     }
 }
 
@@ -526,6 +337,56 @@ impl fmt::Display for OperationStatus {
         let prefix = if self.success { "Success:" } else { "Error:" };
         writeln!(f, "{} {}", prefix, self.message)
     }
+}
+
+// ============================================================================
+// Direct collection formatting functions
+// ============================================================================
+
+/// Format a collection of plans with an optional title.
+///
+/// This provides idiomatic Rust formatting for collections of plans
+/// without requiring wrapper types. Handles empty collections gracefully.
+pub fn format_plan_list(plans: &[PlanSummary], title: Option<&str>) -> String {
+    let mut result = String::new();
+    
+    if let Some(title) = title {
+        result.push_str(&format!("# {title}\n\n"));
+    }
+    
+    if plans.is_empty() {
+        result.push_str("No plans found.\n");
+        return result;
+    }
+    
+    for plan in plans {
+        result.push_str(&format!("{plan}"));
+    }
+    
+    result
+}
+
+/// Format a collection of steps with an optional title.
+///
+/// This provides idiomatic Rust formatting for collections of steps
+/// without requiring wrapper types. Handles empty collections gracefully.
+pub fn format_step_list(steps: &[Step], title: Option<&str>) -> String {
+    let mut result = String::new();
+    
+    if let Some(title) = title {
+        result.push_str(&format!("# {title}\n\n"));
+    }
+    
+    if steps.is_empty() {
+        result.push_str("No steps found.\n");
+        return result;
+    }
+    
+    for step in steps {
+        result.push_str(&format!("{step}"));
+    }
+    
+    result
 }
 
 #[cfg(test)]
@@ -566,19 +427,17 @@ mod tests {
     }
 
     #[test]
-    fn test_plan_list_display() {
+    fn test_format_plan_list() {
         let plans = vec![create_test_plan_summary()];
-        let list = PlanList::new(&plans);
-        let output = format!("{}", list);
+        let output = format_plan_list(&plans, None);
         assert!(output.contains("Test Plan"));
         assert!(output.contains("ID: 1"));
     }
 
     #[test]
-    fn test_step_list_display() {
+    fn test_format_step_list() {
         let steps = vec![create_test_step()];
-        let list = StepList::new(&steps);
-        let output = format!("{}", list);
+        let output = format_step_list(&steps, None);
         assert!(output.contains("Test Step"));
         assert!(output.contains("○ Todo"));
     }

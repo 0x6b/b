@@ -18,7 +18,7 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use beacon_core::{PlanList, models::{PlanSummary, PlanStatus}};
+//! use beacon_core::{format_plan_list, models::{PlanSummary, PlanStatus}};
 //! use jiff::Timestamp;
 //!
 //! // Create a sample plan summary
@@ -36,9 +36,8 @@
 //! };
 //! let plans = vec![plan];
 //!
-//! // Use display wrappers for formatted output
-//! let list = PlanList::with_title(&plans, "My Plans");
-//! let output = format!("{}", list);
+//! // Use helper functions for formatted output
+//! let output = format_plan_list(&plans, Some("My Plans"));
 //! assert!(output.contains("# My Plans"));
 //! assert!(output.contains("My Project"));
 //! ```
@@ -53,7 +52,8 @@ pub mod planner;
 // Re-export commonly used types
 pub use db::Database;
 pub use display::{
-    CreateResult, DeleteResult, OperationStatus, PlanList, StepList, UpdateResult,
+    CreateResult, DeleteResult, OperationStatus, UpdateResult,
+    format_plan_list, format_step_list,
 };
 pub use error::{PlannerError, Result};
 pub use models::{

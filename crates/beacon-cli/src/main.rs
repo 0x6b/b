@@ -8,7 +8,7 @@ mod mcp;
 mod renderer;
 
 use anyhow::{Context, Result};
-use beacon_core::{CreateResult, OperationStatus, PlanFilter, PlanList, PlanStatus, PlannerBuilder, StepStatus, UpdateResult};
+use beacon_core::{CreateResult, OperationStatus, PlanFilter, PlanStatus, PlannerBuilder, StepStatus, UpdateResult, format_plan_list};
 use std::str::FromStr;
 use clap::Parser;
 use cli::{Cli, Commands, PlanCommands, StepCommands};
@@ -165,8 +165,8 @@ async fn handle_plan_list(
         "Active Plans"
     };
 
-    let plan_list = PlanList::with_title(&plan_summaries, title);
-    renderer.render(&plan_list.to_string())?;
+    let formatted_output = format_plan_list(&plan_summaries, Some(title));
+    renderer.render(&formatted_output)?;
 
     Ok(())
 }
@@ -299,8 +299,8 @@ async fn handle_plan_search(
     };
     let title = format!("{status_text} plans in directory: {}", params.directory);
 
-    let plan_list = PlanList::with_title(&plan_summaries, &title);
-    renderer.render(&plan_list.to_string())?;
+    let formatted_output = format_plan_list(&plan_summaries, Some(&title));
+    renderer.render(&formatted_output)?;
 
     Ok(())
 }
@@ -421,7 +421,7 @@ async fn handle_step_update(
         changes.push("references".to_string());
     }
 
-    let result = UpdateResult::with_changes(updated_step, "step", changes);
+    let result = UpdateResult::with_changes(updated_step, changes);
     renderer.render(&result.to_string())?;
 
     Ok(())

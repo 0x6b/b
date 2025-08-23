@@ -159,8 +159,7 @@ async fn test_list_plans_consistency() {
     let summary2 = beacon_core::PlanSummary::from_plan(plan2, 0, 0);
     
     let summaries = vec![summary1, summary2];
-    let list = beacon_core::display::PlanList::with_title(&summaries, "Active Plans");
-    let direct_output = list.to_string();
+    let direct_output = beacon_core::display::format_plan_list(&summaries, Some("Active Plans"));
     
     // Both should have similar structure
     assert!(cli_output.contains("# Active Plans"));
@@ -183,8 +182,7 @@ async fn test_empty_list_consistency() {
     
     // Create empty list directly
     let summaries: Vec<beacon_core::PlanSummary> = vec![];
-    let list = beacon_core::display::PlanList::with_title(&summaries, "Active Plans");
-    let direct_output = list.to_string();
+    let direct_output = beacon_core::display::format_plan_list(&summaries, Some("Active Plans"));
     
     // Both should have similar empty structure
     assert!(cli_output.contains("# Active Plans"));
@@ -319,8 +317,7 @@ async fn test_cli_vs_mcp_list_output() {
     
     // Simulate MCP-style empty list output 
     let empty_plans: Vec<beacon_core::PlanSummary> = vec![];
-    let mcp_empty = beacon_core::display::PlanList::with_title(&empty_plans, "Active Plans");
-    let mcp_empty_str = mcp_empty.to_string();
+    let mcp_empty_str = beacon_core::display::format_plan_list(&empty_plans, Some("Active Plans"));
     
     // Both should produce the same output for empty lists
     assert_eq!(cli_empty.trim(), mcp_empty_str.trim());
@@ -365,8 +362,7 @@ async fn test_cli_vs_mcp_list_output() {
         plan_summaries.push(summary);
     }
     
-    let mcp_list = beacon_core::display::PlanList::with_title(&plan_summaries, "Active Plans");
-    let mcp_list_str = mcp_list.to_string();
+    let mcp_list_str = beacon_core::display::format_plan_list(&plan_summaries, Some("Active Plans"));
     
     // Both outputs should have the same structure
     assert!(cli_list.contains("# Active Plans"));

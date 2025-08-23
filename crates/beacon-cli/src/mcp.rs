@@ -8,7 +8,7 @@ use std::{fmt::Write, future::Future, str::FromStr, sync::Arc};
 
 use anyhow::Result;
 use beacon_core::{
-    display::{CreateResult, OperationStatus, PlanList},
+    display::{CreateResult, OperationStatus, format_plan_list},
     params as core,
     PlanFilter,
     PlanStatus,
@@ -211,7 +211,7 @@ Create a plan that provides everything needed for successful execution. Each ste
 Plan ID: {plan_id}
 
 # Execution Strategy
-You will act as an orchestrator, launching specialized subagents to handle individual steps while maintaining overall progress tracking.
+You will act as an orchestrator, launching specialized subagents, as parrallel if possible, to handle individual steps while maintaining overall progress tracking.
 
 ## Step 1: Locate the Plan
 {plan_id ? "Use the provided plan_id" : "Use `search_plans` with the current directory to find the most recent active plan"}
@@ -458,8 +458,8 @@ impl BeaconMcpServer {
                 "No active plans found"
             };
             let empty_plans: Vec<beacon_core::models::PlanSummary> = Vec::new();
-            let result = PlanList::with_title(&empty_plans, title);
-            Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+            let result = format_plan_list(&empty_plans, Some(title));
+            Ok(CallToolResult::success(vec![Content::text(result)]))
         } else {
             // Convert Plans to PlanSummary with step counts
             let mut plan_summaries = Vec::new();
@@ -483,8 +483,8 @@ impl BeaconMcpServer {
             } else {
                 "Active Plans"
             };
-            let result = PlanList::with_title(&plan_summaries, title);
-            Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+            let result = format_plan_list(&plan_summaries, Some(title));
+            Ok(CallToolResult::success(vec![Content::text(result)]))
         }
     }
 
