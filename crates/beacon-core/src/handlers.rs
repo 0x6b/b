@@ -14,7 +14,7 @@
 //! ```
 //!
 //! - **Handlers**: High-level business workflows (this module)
-//! - **Operations**: Common operations and filters ([`crate::operations`])
+//! - **Parameters**: Request parameters and validation ([`crate::params`])
 //! - **Planner**: Low-level data operations ([`crate::planner`])
 //! - **Models**: Domain objects ([`crate::models`])
 //!
@@ -74,10 +74,7 @@
 //! ```
 
 use crate::{
-    models::{Plan, PlanSummary, Step},
-    operations::{
-        create_directory_filter, create_plan_filter, create_update_request, validate_step_update,
-    },
+    models::{Plan, PlanFilter, PlanSummary, Step},
     params::{
         CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
     },
@@ -110,7 +107,7 @@ use crate::{
 /// # };
 /// ```
 pub async fn handle_list_plans(planner: &Planner, params: &ListPlans) -> Result<Vec<PlanSummary>> {
-    let filter = create_plan_filter(params);
+    let filter = Some(PlanFilter::from(params));
     let plans = planner.list_plans(filter).await?;
     Ok(plans.iter().map(Into::into).collect())
 }
@@ -324,7 +321,7 @@ pub async fn handle_search_plans(
 ) -> Result<Vec<PlanSummary>> {
     let plans = if params.archived {
         // For archived plans, use list_plans with directory filter
-        let filter = create_directory_filter(params.directory.clone(), true);
+        let filter = PlanFilter::for_directory(params.directory.clone(), true);
         planner.list_plans(Some(filter)).await?
     } else {
         // For active plans, use the specialized search method
@@ -446,18 +443,8 @@ pub async fn handle_update_step(planner: &Planner, params: &UpdateStep) -> Resul
     let step = planner.get_step(&Id { id: params.id }).await?;
 
     if step.is_some() {
-        // Validate and convert status and result
-        let (status, result) = validate_step_update(params.status.clone(), params.result.clone())?;
-
-        // Create update request with validated values
-        let update_request = create_update_request(
-            params.title.clone(),
-            params.description.clone(),
-            params.acceptance_criteria.clone(),
-            params.references.clone(),
-            status,
-            result,
-        );
+        // Create validated update request using TryFrom trait
+        let update_request = params.clone().try_into()?;
 
         // Perform the update
         planner.update_step(params.id, update_request).await?;
