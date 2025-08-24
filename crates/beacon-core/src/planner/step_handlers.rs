@@ -1,12 +1,11 @@
 //! Step handler operations that return formatted wrapper types for the Planner.
 
+use super::Planner;
 use crate::{
     error::Result,
     models::Step,
     params::{Id, InsertStep, StepCreate, SwapSteps, UpdateStep},
 };
-
-use super::Planner;
 
 impl Planner {
     /// Handle adding a step to a plan.

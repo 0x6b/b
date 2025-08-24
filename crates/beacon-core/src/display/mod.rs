@@ -25,14 +25,15 @@
 //!    collections
 //! 2. **Separation of Concerns**: Business logic in models, presentation in
 //!    wrappers
-//! 3. **Type Safety**: Newtype wrappers ensure proper formatting without runtime
-//!    errors
+//! 3. **Type Safety**: Newtype wrappers ensure proper formatting without
+//!    runtime errors
 //! 4. **Consistency**: All output goes through standardized display logic
 //!
 //! ## Module Organization
 //!
 //! - [`collections`]: Collection wrapper types (PlanSummaries, Steps)
-//! - [`results`]: Operation result types (CreateResult, UpdateResult, DeleteResult)
+//! - [`results`]: Operation result types (CreateResult, UpdateResult,
+//!   DeleteResult)
 //! - [`status`]: Status and confirmation messages (OperationStatus)
 //! - [`datetime`]: Date/time formatting utilities
 //! - [`models`]: Display implementations for domain models
@@ -106,5 +107,3 @@ pub use collections::{PlanSummaries, Steps};
 pub use datetime::LocalDateTime;
 pub use results::{CreateResult, DeleteResult, UpdateResult};
 pub use status::OperationStatus;
-
-

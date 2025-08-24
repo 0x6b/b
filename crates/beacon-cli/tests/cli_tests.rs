@@ -413,7 +413,9 @@ fn test_cli_help_output() {
         .args(["--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Main command-line interface for Beacon task management tool"))
+        .stdout(predicate::str::contains(
+            "Main command-line interface for Beacon task management tool",
+        ))
         .stdout(predicate::str::contains("Commands:"))
         .stdout(predicate::str::contains("plan"))
         .stdout(predicate::str::contains("step"))

@@ -1,8 +1,7 @@
 //! Plan CRUD operations and queries.
 
 use jiff::Timestamp;
-use rusqlite::{params, OptionalExtension};
-use rusqlite::types::Type;
+use rusqlite::{params, types::Type, OptionalExtension};
 
 use crate::{
     error::{PlannerError, Result},
@@ -85,18 +84,10 @@ impl super::Database {
                     status,
                     directory: row.get(4)?,
                     created_at: row.get::<_, String>(5)?.parse::<Timestamp>().map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            5,
-                            Type::Text,
-                            Box::new(e),
-                        )
+                        rusqlite::Error::FromSqlConversionFailure(5, Type::Text, Box::new(e))
                     })?,
                     updated_at: row.get::<_, String>(6)?.parse::<Timestamp>().map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            6,
-                            Type::Text,
-                            Box::new(e),
-                        )
+                        rusqlite::Error::FromSqlConversionFailure(6, Type::Text, Box::new(e))
                     })?,
                     steps: Vec::new(),
                 })
@@ -197,18 +188,10 @@ impl super::Database {
                     status,
                     directory: row.get(4)?,
                     created_at: row.get::<_, String>(5)?.parse::<Timestamp>().map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            5,
-                            Type::Text,
-                            Box::new(e),
-                        )
+                        rusqlite::Error::FromSqlConversionFailure(5, Type::Text, Box::new(e))
                     })?,
                     updated_at: row.get::<_, String>(6)?.parse::<Timestamp>().map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            6,
-                            Type::Text,
-                            Box::new(e),
-                        )
+                        rusqlite::Error::FromSqlConversionFailure(6, Type::Text, Box::new(e))
                     })?,
                     steps: Vec::new(),
                 };

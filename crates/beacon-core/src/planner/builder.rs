@@ -1,14 +1,14 @@
 //! Builder for creating and configuring Planner instances.
 
 use std::path::{Path, PathBuf};
+
 use tokio::task;
 
+use super::Planner;
 use crate::{
     db::Database,
     error::{PlannerError, Result},
 };
-
-use super::Planner;
 
 /// Builder for creating and configuring Planner instances.
 #[derive(Debug, Clone)]

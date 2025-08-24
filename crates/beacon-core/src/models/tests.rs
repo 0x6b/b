@@ -1,11 +1,11 @@
 #[cfg(test)]
-mod tests {
+mod model_tests {
     use jiff::Timestamp;
 
-    use crate::models::{
-        Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus, UpdateStepRequest,
+    use crate::{
+        display::LocalDateTime,
+        models::{Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus, UpdateStepRequest},
     };
-    use crate::display::LocalDateTime;
 
     fn create_test_step(status: StepStatus) -> Step {
         Step {
@@ -377,11 +377,13 @@ mod tests {
     fn test_update_step_request_try_from_valid_todo() {
         use crate::params::UpdateStep;
 
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("todo".to_string());
-        params.title = Some("Updated Title".to_string());
-        params.description = Some("Updated Description".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("todo".to_string()),
+            title: Some("Updated Title".to_string()),
+            description: Some("Updated Description".to_string()),
+            ..Default::default()
+        };
 
         let result: Result<UpdateStepRequest, _> = params.try_into();
         assert!(result.is_ok());
@@ -397,12 +399,14 @@ mod tests {
     fn test_update_step_request_try_from_valid_done_with_result() {
         use crate::params::UpdateStep;
 
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("done".to_string());
-        params.result = Some("Task completed successfully".to_string());
-        params.acceptance_criteria = Some("Must pass all tests".to_string());
-        params.references = Some(vec!["file.txt".to_string()]);
+        let params = UpdateStep {
+            id: 1,
+            status: Some("done".to_string()),
+            result: Some("Task completed successfully".to_string()),
+            acceptance_criteria: Some("Must pass all tests".to_string()),
+            references: Some(vec!["file.txt".to_string()]),
+            ..Default::default()
+        };
 
         let result: Result<UpdateStepRequest, _> = params.try_into();
         assert!(result.is_ok());
@@ -424,10 +428,12 @@ mod tests {
     fn test_update_step_request_try_from_done_missing_result() {
         use crate::params::UpdateStep;
 
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("done".to_string());
-        params.result = None; // Missing result for done status
+        let params = UpdateStep {
+            id: 1,
+            status: Some("done".to_string()),
+            result: None,
+            ..Default::default()
+        }; // Missing result for done status
 
         let result: Result<UpdateStepRequest, _> = params.try_into();
         assert!(result.is_err());
@@ -445,9 +451,11 @@ mod tests {
     fn test_update_step_request_try_from_invalid_status() {
         use crate::params::UpdateStep;
 
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("invalid_status".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("invalid_status".to_string()),
+            ..Default::default()
+        };
 
         let result: Result<UpdateStepRequest, _> = params.try_into();
         assert!(result.is_err());
@@ -540,7 +548,7 @@ mod tests {
     fn test_local_date_time_new() {
         let timestamp = Timestamp::from_second(1640995200).unwrap(); // 2022-01-01 00:00:00 UTC
         let local_dt = LocalDateTime(&timestamp);
-        
+
         // Verify the wrapper holds the correct timestamp
         assert_eq!(local_dt.0, &timestamp);
     }
@@ -550,7 +558,7 @@ mod tests {
         let timestamp = Timestamp::from_second(1640995200).unwrap(); // 2022-01-01 00:00:00 UTC
         let local_dt = LocalDateTime(&timestamp);
         let output = format!("{}", local_dt);
-        
+
         // Should contain date in YYYY-MM-DD format
         assert!(output.contains("2022-01-01"));
         // Should contain time components (exact time depends on system timezone)
@@ -563,7 +571,6 @@ mod tests {
         assert!(!parts[2].is_empty()); // Timezone is non-empty
     }
 
-
     #[test]
     fn test_local_date_time_different_timestamps() {
         // Test with different timestamps to ensure formatting works consistently
@@ -572,11 +579,11 @@ mod tests {
             Timestamp::from_second(1672531200).unwrap(), // 2023-01-01 00:00:00 UTC
             Timestamp::from_second(1704067200).unwrap(), // 2024-01-01 00:00:00 UTC
         ];
-        
+
         for timestamp in timestamps {
             let local_dt = LocalDateTime(&timestamp);
             let local_dt_output = format!("{}", local_dt);
-            
+
             // Each should have the expected format structure
             let parts: Vec<&str> = local_dt_output.split_whitespace().collect();
             assert_eq!(parts.len(), 3); // Date, Time, Timezone
@@ -585,16 +592,16 @@ mod tests {
         }
     }
 
-    #[test] 
+    #[test]
     fn test_local_date_time_lifetime_safety() {
         // Test that LocalDateTime correctly holds lifetime to timestamp
         let timestamp = Timestamp::from_second(1640995200).unwrap();
         let local_dt = LocalDateTime(&timestamp);
-        
+
         // Should be able to format multiple times
         let output1 = format!("{}", local_dt);
         let output2 = format!("{}", local_dt);
-        
+
         assert_eq!(output1, output2);
         assert!(!output1.is_empty());
     }

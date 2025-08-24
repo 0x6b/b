@@ -1,8 +1,11 @@
 //! Tests for the planner module.
 
-use super::*;
-use crate::params::{CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep};
 use tempfile::TempDir;
+
+use super::*;
+use crate::params::{
+    CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
+};
 
 /// Helper function to create a test planner
 async fn create_test_planner() -> (TempDir, Planner) {
@@ -50,7 +53,10 @@ async fn test_list_plans_summary_active() {
 
     assert_eq!(summaries.0.len(), 1);
     assert_eq!(summaries.0[0].title, "Test Plan");
-    assert_eq!(summaries.0[0].description, Some("Test Description".to_string()));
+    assert_eq!(
+        summaries.0[0].description,
+        Some("Test Description".to_string())
+    );
     assert_eq!(summaries.0[0].total_steps, 1);
     assert_eq!(summaries.0[0].completed_steps, 0);
 }
@@ -418,8 +424,14 @@ async fn test_update_step_validated() {
         .expect("Step should exist");
 
     assert_eq!(updated_step.title, "Updated Step Title");
-    assert_eq!(updated_step.description, Some("Updated description".to_string()));
-    assert_eq!(updated_step.result, Some("Step completed successfully".to_string()));
+    assert_eq!(
+        updated_step.description,
+        Some("Updated description".to_string())
+    );
+    assert_eq!(
+        updated_step.result,
+        Some("Step completed successfully".to_string())
+    );
 }
 
 #[tokio::test]
@@ -523,8 +535,14 @@ async fn test_add_step_to_plan() {
 
     assert_eq!(step.title, "New Step");
     assert_eq!(step.description, Some("Step description".to_string()));
-    assert_eq!(step.acceptance_criteria, Some("Must be completed".to_string()));
-    assert_eq!(step.references, vec!["file1.rs".to_string(), "file2.rs".to_string()]);
+    assert_eq!(
+        step.acceptance_criteria,
+        Some("Must be completed".to_string())
+    );
+    assert_eq!(
+        step.references,
+        vec!["file1.rs".to_string(), "file2.rs".to_string()]
+    );
 }
 
 #[tokio::test]
@@ -625,8 +643,14 @@ async fn test_show_step_details() {
         .expect("Step should exist");
 
     assert_eq!(retrieved_step.title, "Detailed Step");
-    assert_eq!(retrieved_step.description, Some("Detailed description".to_string()));
-    assert_eq!(retrieved_step.acceptance_criteria, Some("Must pass all tests".to_string()));
+    assert_eq!(
+        retrieved_step.description,
+        Some("Detailed description".to_string())
+    );
+    assert_eq!(
+        retrieved_step.acceptance_criteria,
+        Some("Must pass all tests".to_string())
+    );
     assert_eq!(retrieved_step.references, vec!["test.rs".to_string()]);
 }
 

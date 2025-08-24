@@ -1,8 +1,7 @@
 //! Step CRUD operations and queries.
 
 use jiff::Timestamp;
-use rusqlite::{params, OptionalExtension};
-use rusqlite::types::Type;
+use rusqlite::{params, types::Type, OptionalExtension};
 
 use crate::{
     error::{PlannerError, Result},
@@ -379,21 +378,13 @@ impl super::Database {
                     result: row.get(7)?,
                     order: row.get::<_, i64>(8)? as u32,
                     created_at: row.get::<_, String>(9)?.parse::<Timestamp>().map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            9,
-                            Type::Text,
-                            Box::new(e),
-                        )
+                        rusqlite::Error::FromSqlConversionFailure(9, Type::Text, Box::new(e))
                     })?,
                     updated_at: row
                         .get::<_, String>(10)?
                         .parse::<Timestamp>()
                         .map_err(|e| {
-                            rusqlite::Error::FromSqlConversionFailure(
-                                10,
-                                Type::Text,
-                                Box::new(e),
-                            )
+                            rusqlite::Error::FromSqlConversionFailure(10, Type::Text, Box::new(e))
                         })?,
                 })
             })
@@ -442,21 +433,13 @@ impl super::Database {
                     result: row.get(7)?,
                     order: row.get::<_, i64>(8)? as u32,
                     created_at: row.get::<_, String>(9)?.parse::<Timestamp>().map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            9,
-                            Type::Text,
-                            Box::new(e),
-                        )
+                        rusqlite::Error::FromSqlConversionFailure(9, Type::Text, Box::new(e))
                     })?,
                     updated_at: row
                         .get::<_, String>(10)?
                         .parse::<Timestamp>()
                         .map_err(|e| {
-                            rusqlite::Error::FromSqlConversionFailure(
-                                10,
-                                Type::Text,
-                                Box::new(e),
-                            )
+                            rusqlite::Error::FromSqlConversionFailure(10, Type::Text, Box::new(e))
                         })?,
                 })
             })

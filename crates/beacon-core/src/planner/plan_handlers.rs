@@ -1,12 +1,11 @@
 //! Plan handler operations that return formatted wrapper types for the Planner.
 
+use super::Planner;
 use crate::{
     error::Result,
     models::{Plan, PlanFilter, PlanSummary},
     params::{Id, ListPlans, SearchPlans},
 };
-
-use super::Planner;
 
 impl Planner {
     /// Handle listing plans with optional archived filtering.
@@ -33,7 +32,10 @@ impl Planner {
     /// # Result::<(), beacon_core::PlannerError>::Ok(())
     /// # };
     /// ```
-    pub async fn list_plans_summary(&self, params: &ListPlans) -> Result<crate::display::PlanSummaries> {
+    pub async fn list_plans_summary(
+        &self,
+        params: &ListPlans,
+    ) -> Result<crate::display::PlanSummaries> {
         let filter = Some(PlanFilter::from(params));
         let plans = self.list_plans(filter).await?;
         let summaries: Vec<PlanSummary> = plans.iter().map(Into::into).collect();
@@ -177,9 +179,9 @@ impl Planner {
 
     /// Handle permanently deleting a plan with confirmation.
     ///
-    /// Permanently removes a plan and all its associated steps from the database.
-    /// This operation cannot be undone. Uses get-before-delete pattern
-    /// to return the plan details for confirmation.
+    /// Permanently removes a plan and all its associated steps from the
+    /// database. This operation cannot be undone. Uses get-before-delete
+    /// pattern to return the plan details for confirmation.
     ///
     /// # Arguments
     ///
@@ -216,7 +218,8 @@ impl Planner {
     ///
     /// Searches for plans associated with the specified directory path,
     /// with optional archived filtering, and returns them as summaries
-    /// with step counts. Includes conditional logic for archived vs active plans.
+    /// with step counts. Includes conditional logic for archived vs active
+    /// plans.
     ///
     /// # Arguments
     ///
@@ -224,7 +227,8 @@ impl Planner {
     ///
     /// # Returns
     ///
-    /// A PlanSummaries wrapper containing plan summary objects matching the search criteria
+    /// A PlanSummaries wrapper containing plan summary objects matching the
+    /// search criteria
     ///
     /// # Examples
     ///
@@ -240,7 +244,10 @@ impl Planner {
     /// # Result::<(), beacon_core::PlannerError>::Ok(())
     /// # };
     /// ```
-    pub async fn search_plans_summary(&self, params: &SearchPlans) -> Result<crate::display::PlanSummaries> {
+    pub async fn search_plans_summary(
+        &self,
+        params: &SearchPlans,
+    ) -> Result<crate::display::PlanSummaries> {
         let plans = if params.archived {
             // For archived plans, use list_plans with directory filter
             let filter = PlanFilter::for_directory(params.directory.clone(), true);

@@ -20,8 +20,10 @@
 //! ## Submodules
 //!
 //! - [`migrations`]: Database schema initialization and version management
-//! - [`plan_queries`]: Specialized queries for plan operations (CRUD, filtering, search)
-//! - [`step_queries`]: Specialized queries for step operations (CRUD, ordering, status updates)
+//! - [`plan_queries`]: Specialized queries for plan operations (CRUD,
+//!   filtering, search)
+//! - [`step_queries`]: Specialized queries for step operations (CRUD, ordering,
+//!   status updates)
 //! - [`utils`]: Common database utilities and helper functions
 //!
 //! ## Features
@@ -33,7 +35,8 @@
 //!
 //! ### Query Organization
 //! - **Type Safety**: Strongly typed query parameters and results
-//! - **Transaction Support**: Proper transaction boundaries for multi-operation workflows
+//! - **Transaction Support**: Proper transaction boundaries for multi-operation
+//!   workflows
 //! - **Error Handling**: Comprehensive error propagation with context
 //! - **Performance**: Optimized queries with proper indexing
 //!
@@ -96,5 +99,4 @@ impl Database {
         db.initialize_schema()?;
         Ok(db)
     }
-
 }

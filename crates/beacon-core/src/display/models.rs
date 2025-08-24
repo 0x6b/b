@@ -1,16 +1,18 @@
 //! Display implementations for domain models.
 //!
-//! This module contains all Display trait implementations for the core domain models,
-//! separated from the model definitions to maintain clean separation of concerns.
-//! 
+//! This module contains all Display trait implementations for the core domain
+//! models, separated from the model definitions to maintain clean separation of
+//! concerns.
+//!
 //! The Display implementations provide:
 //! - Markdown-formatted output for rich terminal display
 //! - Consistent formatting with status icons and structured sections
 //! - Context-aware display behavior for different use cases
 
 use std::fmt;
-use crate::models::{Plan, Step, PlanSummary, PlanStatus, StepStatus};
+
 use super::datetime::LocalDateTime;
+use crate::models::{Plan, PlanStatus, PlanSummary, Step, StepStatus};
 
 impl fmt::Display for PlanStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

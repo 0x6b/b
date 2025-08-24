@@ -26,7 +26,8 @@ impl UpdateStepRequest {
     /// * `description` - Optional new description for the step
     /// * `acceptance_criteria` - Optional new acceptance criteria for the step
     /// * `references` - Optional new references list for the step
-    /// * `status` - Optional validated StepStatus (already parsed and validated)
+    /// * `status` - Optional validated StepStatus (already parsed and
+    ///   validated)
     /// * `result` - Optional result description for the step
     ///
     /// # Returns
@@ -36,7 +37,7 @@ impl UpdateStepRequest {
     /// # Examples
     ///
     /// ```rust
-    /// use beacon_core::models::{UpdateStepRequest, StepStatus};
+    /// use beacon_core::models::{StepStatus, UpdateStepRequest};
     ///
     /// let request = UpdateStepRequest::new(
     ///     Some("Updated title".to_string()),
@@ -49,7 +50,10 @@ impl UpdateStepRequest {
     ///
     /// assert_eq!(request.title, Some("Updated title".to_string()));
     /// assert_eq!(request.status, Some(StepStatus::Done));
-    /// assert_eq!(request.result, Some("Task completed successfully".to_string()));
+    /// assert_eq!(
+    ///     request.result,
+    ///     Some("Task completed successfully".to_string())
+    /// );
     /// ```
     pub fn new(
         title: Option<String>,
@@ -91,12 +95,13 @@ impl TryFrom<crate::params::UpdateStep> for UpdateStepRequest {
     /// # Errors
     ///
     /// * `PlannerError::InvalidInput` - When status string is invalid
-    /// * `PlannerError::InvalidInput` - When result is missing for 'done' status
+    /// * `PlannerError::InvalidInput` - When result is missing for 'done'
+    ///   status
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use beacon_core::{params::UpdateStep, models::UpdateStepRequest};
+    /// use beacon_core::{models::UpdateStepRequest, params::UpdateStep};
     ///
     /// // Valid conversion with status change
     /// let mut params = UpdateStep::default();

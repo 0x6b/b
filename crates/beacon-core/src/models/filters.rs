@@ -31,10 +31,10 @@ pub struct PlanFilter {
 impl PlanFilter {
     /// Create a directory-specific plan filter for search operations.
     ///
-    /// This associated function creates a plan filter that combines directory filtering
-    /// with archived status filtering for search operations. It provides the same
-    /// functionality as the `create_directory_filter` function but as an idiomatic
-    /// associated constructor.
+    /// This associated function creates a plan filter that combines directory
+    /// filtering with archived status filtering for search operations. It
+    /// provides the same functionality as the `create_directory_filter`
+    /// function but as an idiomatic associated constructor.
     ///
     /// # Arguments
     ///
@@ -55,7 +55,7 @@ impl PlanFilter {
     /// assert_eq!(filter.directory, Some("/path/to/project".to_string()));
     /// assert!(!filter.include_archived);
     ///
-    /// // Filter for archived plans in a specific directory  
+    /// // Filter for archived plans in a specific directory
     /// let filter = PlanFilter::for_directory("/path/to/archived".to_string(), true);
     /// assert_eq!(filter.directory, Some("/path/to/archived".to_string()));
     /// assert!(filter.include_archived);
@@ -100,7 +100,7 @@ impl From<&crate::params::ListPlans> for PlanFilter {
     /// # Examples
     ///
     /// ```rust
-    /// use beacon_core::{params::ListPlans, models::PlanFilter};
+    /// use beacon_core::{models::PlanFilter, params::ListPlans};
     ///
     /// // Filter for active plans
     /// let params = ListPlans { archived: false };
@@ -111,7 +111,10 @@ impl From<&crate::params::ListPlans> for PlanFilter {
     /// // Filter for archived plans
     /// let params = ListPlans { archived: true };
     /// let filter: PlanFilter = (&params).into();
-    /// assert_eq!(filter.status, Some(beacon_core::models::PlanStatus::Archived));
+    /// assert_eq!(
+    ///     filter.status,
+    ///     Some(beacon_core::models::PlanStatus::Archived)
+    /// );
     /// assert!(filter.include_archived);
     /// ```
     fn from(params: &crate::params::ListPlans) -> Self {

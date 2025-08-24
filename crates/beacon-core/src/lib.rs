@@ -21,7 +21,7 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use beacon_core::{PlannerBuilder, params::CreatePlan};
+//! use beacon_core::{params::CreatePlan, PlannerBuilder};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create a planner instance

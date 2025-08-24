@@ -246,13 +246,14 @@ impl UpdateStep {
     ///
     /// # Returns
     ///
-    /// A Result containing a tuple of (optional parsed StepStatus, optional result),
-    /// or an error if validation fails.
+    /// A Result containing a tuple of (optional parsed StepStatus, optional
+    /// result), or an error if validation fails.
     ///
     /// # Errors
     ///
     /// * `PlannerError::InvalidInput` - When status string is invalid
-    /// * `PlannerError::InvalidInput` - When result is missing for 'done' status
+    /// * `PlannerError::InvalidInput` - When result is missing for 'done'
+    ///   status
     ///
     /// # Examples
     ///
@@ -277,8 +278,9 @@ impl UpdateStep {
     /// # Result::<()>::Ok(())
     /// ```
     pub fn validate(&self) -> crate::Result<(Option<crate::models::StepStatus>, Option<String>)> {
-        use crate::models::StepStatus;
         use std::str::FromStr;
+
+        use crate::models::StepStatus;
 
         let step_status = if let Some(status_str) = &self.status {
             Some(StepStatus::from_str(status_str).map_err(|_| {
@@ -315,9 +317,11 @@ mod tests {
 
     #[test]
     fn test_update_step_validate_valid_todo() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("todo".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("todo".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -329,9 +333,11 @@ mod tests {
 
     #[test]
     fn test_update_step_validate_valid_inprogress() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("inprogress".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("inprogress".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -343,10 +349,12 @@ mod tests {
 
     #[test]
     fn test_update_step_validate_valid_done_with_result() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("done".to_string());
-        params.result = Some("Successfully completed".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("done".to_string()),
+            result: Some("Successfully completed".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -358,10 +366,12 @@ mod tests {
 
     #[test]
     fn test_update_step_validate_done_missing_result() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("done".to_string());
-        params.result = None;
+        let params = UpdateStep {
+            id: 1,
+            status: Some("done".to_string()),
+            result: None,
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_err());
@@ -377,9 +387,11 @@ mod tests {
 
     #[test]
     fn test_update_step_validate_invalid_status() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("invalid".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("invalid".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_err());
@@ -395,10 +407,12 @@ mod tests {
 
     #[test]
     fn test_update_step_validate_no_status() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = None;
-        params.result = Some("Some result".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: None,
+            result: Some("Some result".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -410,9 +424,11 @@ mod tests {
 
     #[test]
     fn test_update_step_validate_alternative_inprogress_spelling() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("in_progress".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("in_progress".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -436,9 +452,11 @@ mod tests {
 
     #[test]
     fn test_validate_step_update_valid_todo() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("todo".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("todo".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -450,9 +468,11 @@ mod tests {
 
     #[test]
     fn test_validate_step_update_valid_inprogress() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("inprogress".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("inprogress".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -464,10 +484,12 @@ mod tests {
 
     #[test]
     fn test_validate_step_update_valid_done_with_result() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("done".to_string());
-        params.result = Some("Successfully completed".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("done".to_string()),
+            result: Some("Successfully completed".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());
@@ -479,10 +501,12 @@ mod tests {
 
     #[test]
     fn test_validate_step_update_done_missing_result() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("done".to_string());
-        params.result = None;
+        let params = UpdateStep {
+            id: 1,
+            status: Some("done".to_string()),
+            result: None,
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_err());
@@ -498,9 +522,11 @@ mod tests {
 
     #[test]
     fn test_validate_step_update_invalid_status() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = Some("invalid".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: Some("invalid".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_err());
@@ -516,10 +542,12 @@ mod tests {
 
     #[test]
     fn test_validate_step_update_no_status() {
-        let mut params = UpdateStep::default();
-        params.id = 1;
-        params.status = None;
-        params.result = Some("Some result".to_string());
+        let params = UpdateStep {
+            id: 1,
+            status: None,
+            result: Some("Some result".to_string()),
+            ..Default::default()
+        };
 
         let result = params.validate();
         assert!(result.is_ok());

@@ -4,7 +4,7 @@ use std::{future::Future, sync::Arc};
 
 use beacon_core::{
     display::{CreateResult, OperationStatus},
-    params as core,
+    params as core, Planner,
 };
 use rmcp::{
     handler::server::tool::Parameters,
@@ -20,8 +20,6 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::debug;
-
-use beacon_core::Planner;
 
 use super::{errors::to_mcp_error, prompts::get_prompt_templates};
 
@@ -210,9 +208,7 @@ impl McpHandlers {
         let _unarchived_plan = planner
             .unarchive_plan_with_confirmation(inner_params)
             .await
-            .map_err(|e| {
-                ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None)
-            })?
+            .map_err(|e| ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None))?
             .ok_or_else(|| {
                 ErrorData::internal_error(
                     format!("Plan with ID {} not found", inner_params.id),
@@ -270,9 +266,7 @@ impl McpHandlers {
         let plan_summaries = planner
             .search_plans_summary(inner_params)
             .await
-            .map_err(|e| {
-                ErrorData::internal_error(format!("Failed to search plans: {e}"), None)
-            })?;
+            .map_err(|e| ErrorData::internal_error(format!("Failed to search plans: {e}"), None))?;
 
         let result = if plan_summaries.is_empty() {
             let status_text = if inner_params.archived {
@@ -424,11 +418,7 @@ impl McpHandlers {
         let result = if messages.is_empty() {
             "No updates provided for step".to_string()
         } else {
-            format!(
-                "Step {} updated: {}",
-                inner_params.id,
-                messages.join(", ")
-            )
+            format!("Step {} updated: {}", inner_params.id, messages.join(", "))
         };
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
@@ -479,12 +469,9 @@ impl McpHandlers {
             }
             Ok(false) => {
                 // Step was not in todo status, get current status
-                let step = planner
-                    .show_step_details(inner_params)
-                    .await
-                    .map_err(|e| {
-                        ErrorData::internal_error(format!("Failed to get step: {e}"), None)
-                    })?;
+                let step = planner.show_step_details(inner_params).await.map_err(|e| {
+                    ErrorData::internal_error(format!("Failed to get step: {e}"), None)
+                })?;
 
                 if let Some(step) = step {
                     use beacon_core::models::StepStatus;

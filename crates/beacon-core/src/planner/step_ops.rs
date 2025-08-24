@@ -2,14 +2,13 @@
 
 use tokio::task;
 
+use super::Planner;
 use crate::{
     db::Database,
     error::{PlannerError, Result},
     models::{Step, UpdateStepRequest},
     params::{Id, InsertStep, StepCreate, SwapSteps},
 };
-
-use super::Planner;
 
 impl Planner {
     /// Adds a new step to the specified plan with optional description,

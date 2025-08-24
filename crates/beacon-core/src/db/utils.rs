@@ -1,7 +1,6 @@
 //! Database utility functions for path handling.
 
-use std::env::current_dir;
-use std::path::Path;
+use std::{env::current_dir, path::Path};
 
 use crate::error::{PlannerError, Result};
 

@@ -2,14 +2,13 @@
 
 use tokio::task;
 
+use super::Planner;
 use crate::{
     db::Database,
     error::{PlannerError, Result},
     models::{Plan, PlanFilter},
     params::{CreatePlan, Id, SearchPlans},
 };
-
-use super::Planner;
 
 impl Planner {
     /// Creates a new plan with the given title, optional description, and

@@ -61,10 +61,11 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 /// Main command-line interface for Beacon task management tool
 ///
-/// Beacon is a hierarchical task planning and management system that helps organize
-/// work into structured plans and steps. It provides a command-line interface for
-/// creating, managing, and tracking tasks with support for both local CLI operations
-/// and MCP (Model Context Protocol) server mode for integration with AI assistants.
+/// Beacon is a hierarchical task planning and management system that helps
+/// organize work into structured plans and steps. It provides a command-line
+/// interface for creating, managing, and tracking tasks with support for both
+/// local CLI operations and MCP (Model Context Protocol) server mode for
+/// integration with AI assistants.
 #[derive(Parser)]
 #[command(version, about, name = "beacon")]
 pub struct Cli {
@@ -152,9 +153,10 @@ impl From<CreatePlanArgs> for CreatePlan {
 
 /// List all plans
 ///
-/// Display either active plans (default) or archived plans based on the --archived flag.
-/// Active plans are those currently being worked on, while archived plans are
-/// completed or temporarily inactive plans that have been moved out of the main view.
+/// Display either active plans (default) or archived plans based on the
+/// --archived flag. Active plans are those currently being worked on, while
+/// archived plans are completed or temporarily inactive plans that have been
+/// moved out of the main view.
 #[derive(Args)]
 pub struct ListPlansArgs {
     /// Show archived plans instead of active plans
@@ -175,9 +177,9 @@ impl From<ListPlansArgs> for ListPlans {
 
 /// Show details of a specific plan
 ///
-/// Display comprehensive information about a plan including its title, description,
-/// directory, creation/modification timestamps, and all associated steps with their
-/// current status and details.
+/// Display comprehensive information about a plan including its title,
+/// description, directory, creation/modification timestamps, and all associated
+/// steps with their current status and details.
 #[derive(Args)]
 pub struct ShowPlanArgs {
     /// ID of the plan to display
@@ -194,8 +196,9 @@ impl From<ShowPlanArgs> for Id {
 /// Archive a plan
 ///
 /// Move a plan to the archived state, hiding it from the default plan list.
-/// Archived plans are preserved and can be restored later with the unarchive command.
-/// Use this for completed projects or plans that are temporarily on hold.
+/// Archived plans are preserved and can be restored later with the unarchive
+/// command. Use this for completed projects or plans that are temporarily on
+/// hold.
 #[derive(Args)]
 pub struct ArchivePlanArgs {
     /// ID of the plan to archive
@@ -213,7 +216,8 @@ impl From<ArchivePlanArgs> for Id {
 ///
 /// Restore an archived plan back to the active list, making it visible in the
 /// default plan listing. The plan and all its steps are preserved exactly as
-/// they were when archived. Use this to resume work on previously archived projects.
+/// they were when archived. Use this to resume work on previously archived
+/// projects.
 #[derive(Args)]
 pub struct UnarchivePlanArgs {
     /// ID of the plan to restore from archive
@@ -395,9 +399,9 @@ impl From<InsertStepArgs> for InsertStep {
 ///
 /// Allows modifying any aspect of an existing step including status, title,
 /// description, acceptance criteria, and references. When changing status to
-/// 'done', the result field should be provided to document what was accomplished.
-/// The result field is required for completion tracking and is ignored for
-/// other status changes.
+/// 'done', the result field should be provided to document what was
+/// accomplished. The result field is required for completion tracking and is
+/// ignored for other status changes.
 #[derive(Args)]
 pub struct UpdateStepArgs {
     #[arg(help = "Unique identifier of the step to update")]
@@ -449,8 +453,9 @@ impl From<UpdateStepArgs> for UpdateStep {
 /// Show details of a specific step
 ///
 /// Displays comprehensive information about a single step including its status,
-/// timestamps, description, acceptance criteria, references, and result (if completed).
-/// Use when you need to focus on a single step's details rather than the whole plan.
+/// timestamps, description, acceptance criteria, references, and result (if
+/// completed). Use when you need to focus on a single step's details rather
+/// than the whole plan.
 #[derive(Args)]
 pub struct ShowStepArgs {
     #[arg(help = "Unique identifier of the step to show details for")]
@@ -503,8 +508,8 @@ pub enum StepCommands {
 /// Command-line argument representation of step status values
 ///
 /// This enum provides the CLI interface for step status transitions,
-/// converting between user-friendly command arguments and internal status strings.
-/// Used with the `--status` flag in step update commands.
+/// converting between user-friendly command arguments and internal status
+/// strings. Used with the `--status` flag in step update commands.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum StepStatusArg {
     /// Mark step as todo

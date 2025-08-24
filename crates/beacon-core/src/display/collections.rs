@@ -9,8 +9,9 @@ use crate::models::{PlanSummary, Step};
 
 /// Newtype wrapper for displaying collections of plan summaries.
 ///
-/// This provides clean Display formatting for plan collections without title handling,
-/// allowing consumers to handle titles separately. Handles empty collections gracefully.
+/// This provides clean Display formatting for plan collections without title
+/// handling, allowing consumers to handle titles separately. Handles empty
+/// collections gracefully.
 ///
 /// # Examples
 ///
@@ -112,7 +113,10 @@ impl fmt::Display for PlanSummaries {
 /// # Examples
 ///
 /// ```rust
-/// use beacon_core::{display::Steps, models::{Step, StepStatus}};
+/// use beacon_core::{
+///     display::Steps,
+///     models::{Step, StepStatus},
+/// };
 /// use jiff::Timestamp;
 ///
 /// // Create a collection of steps
@@ -185,7 +189,7 @@ impl<'a> IntoIterator for &'a Steps {
 impl fmt::Display for Steps {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.0.is_empty() {
-            write!(f, "No steps found.\n")
+            writeln!(f, "No steps found.")
         } else {
             for step in &self.0 {
                 write!(f, "{}", step)?;
@@ -280,7 +284,7 @@ mod tests {
         let step = create_test_step();
         let steps = Steps(vec![step]);
         let output = format!("{}", steps);
-        
+
         assert!(output.contains("Test Step"));
         assert!(output.contains("○ Todo"));
         assert!(output.contains("Should work"));
@@ -293,10 +297,10 @@ mod tests {
         step2.id = 2;
         step2.title = "Second Step".to_string();
         step2.status = StepStatus::Done;
-        
+
         let steps = Steps(vec![step1, step2]);
         let output = format!("{}", steps);
-        
+
         assert!(output.contains("Test Step"));
         assert!(output.contains("Second Step"));
         assert!(output.contains("○ Todo"));

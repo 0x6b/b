@@ -3,7 +3,7 @@
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
-use super::{Step, PlanStatus};
+use super::{PlanStatus, Step};
 
 /// Represents a complete plan with metadata and steps.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

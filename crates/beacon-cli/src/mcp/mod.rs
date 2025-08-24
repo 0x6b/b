@@ -17,8 +17,10 @@ use rmcp::{
     service::RequestContext,
     tool, tool_handler, tool_router, ErrorData as McpError, RoleServer, ServerHandler,
 };
-use tokio::signal::unix::{signal, SignalKind};
-use tokio::sync::Mutex;
+use tokio::{
+    signal::unix::{signal, SignalKind},
+    sync::Mutex,
+};
 use tracing::{debug, error, info};
 
 pub mod errors;
@@ -26,7 +28,10 @@ pub mod handlers;
 pub mod prompts;
 
 // Re-export parameter types and result type from handlers for external use
-pub use handlers::{CreatePlan, Id, InsertStep, ListPlans, McpResult, SearchPlans, StepCreate, SwapSteps, UpdateStep};
+pub use handlers::{
+    CreatePlan, Id, InsertStep, ListPlans, McpResult, SearchPlans, StepCreate, SwapSteps,
+    UpdateStep,
+};
 
 /// MCP server for Beacon
 #[derive(Clone)]

@@ -1,7 +1,8 @@
 //! Result wrapper types for displaying operation outcomes.
 //!
-//! This module provides wrapper types that format the results of create, update,
-//! and delete operations with consistent messaging and resource display.
+//! This module provides wrapper types that format the results of create,
+//! update, and delete operations with consistent messaging and resource
+//! display.
 
 use std::fmt;
 
