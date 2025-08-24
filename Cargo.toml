@@ -83,6 +83,3 @@ large_types_passed_by_value = "warn"
 explicit_iter_loop = "warn"
 manual_let_else = "warn"
 inconsistent_struct_constructor = "warn"
-
-# Pedantic lints (more strict)
-missing_panics_doc = "warn"

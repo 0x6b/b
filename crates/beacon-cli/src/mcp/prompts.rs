@@ -1,5 +1,7 @@
 //! Prompt templates for MCP server
 
+use std::sync::LazyLock;
+
 /// Argument definition for a prompt template
 #[derive(Debug, Clone)]
 pub struct PromptTemplateArg {
@@ -17,35 +19,28 @@ pub struct PromptTemplate {
     pub arguments: Vec<PromptTemplateArg>,
 }
 
-/// Get predefined prompt templates for task planning
-pub fn get_prompt_templates() -> Vec<PromptTemplate> {
-    vec![create_plan_template(), execute_plan_template()]
-}
+pub static PROMPT_TEMPLATES: LazyLock<Vec<PromptTemplate>> = LazyLock::new(|| {
+    vec![
+        PromptTemplate {
+            name: "plan".to_string(),
+            description: "Create a structured action plan using Beacon's MCP tools".to_string(),
+            template: include_str!("../../templates/plan.md").to_string(),
+            arguments: vec![PromptTemplateArg {
+                name: "goal".to_string(),
+                description: "The goal or outcome to create a plan for".to_string(),
+                required: true,
+            }],
+        },
+        PromptTemplate {
+            name: "do".to_string(),
+            description: "Execute a plan by launching focused subagents for each step".to_string(),
+            template: include_str!("../../templates/execute.md").to_string(),
+            arguments: vec![PromptTemplateArg {
+                name: "plan_id".to_string(),
+                description: "The ID of the plan to execute (if not provided, will search for latest plan in current directory)".to_string(),
+                required: false,
+            }],
+        },
+    ]
+});
 
-fn create_plan_template() -> PromptTemplate {
-    PromptTemplate {
-        name: "plan".to_string(),
-        description: "Create a structured action plan using Beacon's MCP tools".to_string(),
-        template: include_str!("../../templates/plan.md").to_string(),
-        arguments: vec![PromptTemplateArg {
-            name: "goal".to_string(),
-            description: "The goal or outcome to create a plan for".to_string(),
-            required: true,
-        }],
-    }
-}
-
-fn execute_plan_template() -> PromptTemplate {
-    PromptTemplate {
-        name: "do".to_string(),
-        description: "Execute a plan by launching focused subagents for each step".to_string(),
-        template: include_str!("../../templates/execute.md").to_string(),
-            arguments: vec![
-                PromptTemplateArg {
-                    name: "plan_id".to_string(),
-                    description: "The ID of the plan to execute (if not provided, will search for latest plan in current directory)".to_string(),
-                    required: false,
-                },
-            ],
-        }
-}

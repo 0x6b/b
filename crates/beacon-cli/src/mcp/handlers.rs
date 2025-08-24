@@ -21,7 +21,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::Mutex;
 
-use super::{errors::to_mcp_error, prompts::get_prompt_templates};
+use super::{errors::to_mcp_error, prompts::PROMPT_TEMPLATES};
 
 // ============================================================================
 // Generic Parameter Wrapper Implementation
@@ -501,7 +501,7 @@ impl McpHandlers {
     ) -> Result<ListPromptsResult, McpError> {
         debug!("list_prompts");
 
-        let templates = get_prompt_templates();
+        let templates = &PROMPT_TEMPLATES;
         let prompts = templates
             .iter()
             .map(|template| {
@@ -537,7 +537,7 @@ impl McpHandlers {
     ) -> Result<GetPromptResult, McpError> {
         debug!("get_prompt: {}", request.name);
 
-        let templates = get_prompt_templates();
+        let templates = &PROMPT_TEMPLATES;
         let template = templates
             .iter()
             .find(|t| t.name == request.name)
