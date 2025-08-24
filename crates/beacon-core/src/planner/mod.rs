@@ -20,6 +20,7 @@ pub mod step_ops;
 pub use builder::PlannerBuilder;
 
 /// Main planner interface for managing plans and steps.
+#[derive(Clone)]
 pub struct Planner {
     pub(crate) db_path: PathBuf,
 }

@@ -41,68 +41,7 @@ impl Planner {
         let summaries: Vec<PlanSummary> = plans.iter().map(Into::into).collect();
         Ok(crate::display::PlanSummaries(summaries))
     }
-
-    /// Handle showing a complete plan with all its steps.
-    ///
-    /// Retrieves a plan with its associated steps eagerly loaded.
-    /// The returned Plan object includes all steps in the steps field.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - ID parameters specifying which plan to retrieve
-    ///
-    /// # Returns
-    ///
-    /// An optional Plan containing the plan with its steps loaded,
-    /// or None if the plan doesn't exist
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use beacon_core::{params::Id, PlannerBuilder};
-    /// # async {
-    /// let planner = PlannerBuilder::new().build().await?;
-    /// let params = Id { id: 1 };
-    /// let plan = planner.show_plan_with_steps(&params).await?;
-    /// # Result::<(), beacon_core::PlannerError>::Ok(())
-    /// # };
-    /// ```
-    pub async fn show_plan_with_steps(&self, params: &Id) -> Result<Option<Plan>> {
-        self.get_plan(params).await
-    }
-
-    /// Handle creating a new plan.
-    ///
-    /// Creates a new plan with the specified parameters and returns
-    /// the created plan object for confirmation.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - Creation parameters containing title and optional fields
-    ///
-    /// # Returns
-    ///
-    /// The newly created Plan object
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use beacon_core::{params::CreatePlan, PlannerBuilder};
-    /// # async {
-    /// let planner = PlannerBuilder::new().build().await?;
-    /// let params = CreatePlan {
-    ///     title: "My Plan".to_string(),
-    ///     description: Some("A test plan".to_string()),
-    ///     directory: None,
-    /// };
-    /// let plan = planner.create_plan_result(&params).await?;
-    /// # Result::<(), beacon_core::PlannerError>::Ok(())
-    /// # };
-    /// ```
-    pub async fn create_plan_result(&self, params: &crate::params::CreatePlan) -> Result<Plan> {
-        self.create_plan(params).await
-    }
-
+    
     /// Handle permanently deleting a plan with confirmation.
     ///
     /// Permanently removes a plan and all its associated steps from the

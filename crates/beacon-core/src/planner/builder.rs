@@ -14,8 +14,6 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct PlannerBuilder {
     database_path: Option<PathBuf>,
-    connection_pool_size: usize,
-    read_only: bool,
 }
 
 impl PlannerBuilder {
@@ -23,8 +21,6 @@ impl PlannerBuilder {
     pub fn new() -> Self {
         Self {
             database_path: None,
-            connection_pool_size: 1,
-            read_only: false,
         }
     }
 
@@ -32,26 +28,10 @@ impl PlannerBuilder {
     ///
     /// If not specified, uses XDG Base Directory specification:
     /// `$XDG_DATA_HOME/beacon/tasks.db` or `~/.local/share/beacon/tasks.db`
-    pub fn with_database_path<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.database_path = Some(path.as_ref().to_path_buf());
-        self
-    }
-
-    /// Sets the connection pool size for concurrent operations.
-    ///
-    /// Default is 1 (single connection). Higher values may improve
-    /// performance for concurrent workloads but increase memory usage.
-    pub fn with_connection_pool_size(mut self, size: usize) -> Self {
-        self.connection_pool_size = size.max(1);
-        self
-    }
-
-    /// Opens the database in read-only mode.
-    ///
-    /// Useful for querying operations where mutations are not required.
-    /// Provides additional safety and may enable optimizations.
-    pub fn read_only(mut self) -> Self {
-        self.read_only = true;
+    pub fn with_database_path<P: AsRef<Path>>(mut self, path: Option<P>) -> Self {
+        if let Some(path) = path {
+            self.database_path = Some(path.as_ref().to_path_buf());
+        }
         self
     }
 
