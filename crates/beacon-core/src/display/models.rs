@@ -48,9 +48,9 @@ impl fmt::Display for Plan {
         if !self.steps.is_empty() {
             writeln!(f, "\n## Steps")?;
             writeln!(f)?;
-            for step in &self.steps {
-                write!(f, "{}", step)?;
-            }
+            self.steps
+                .iter()
+                .try_for_each(|step| write!(f, "{}", step))?;
         } else {
             writeln!(f, "\nNo steps in this plan.")?;
         }
@@ -95,9 +95,9 @@ impl fmt::Display for Step {
         if !self.references.is_empty() {
             writeln!(f, "#### References")?;
             writeln!(f)?;
-            for reference in &self.references {
-                writeln!(f, "- {reference}")?;
-            }
+            self.references
+                .iter()
+                .try_for_each(|reference| writeln!(f, "- {reference}"))?;
             writeln!(f)?;
         }
 

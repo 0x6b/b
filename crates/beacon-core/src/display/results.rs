@@ -78,9 +78,9 @@ impl fmt::Display for UpdateResult<Plan> {
         if !self.changes.is_empty() {
             writeln!(f)?;
             writeln!(f, "Changes made:")?;
-            for change in &self.changes {
-                writeln!(f, "- {change}")?;
-            }
+            self.changes
+                .iter()
+                .try_for_each(|change| writeln!(f, "- {change}"))?;
         }
 
         writeln!(f)?;
@@ -95,9 +95,9 @@ impl fmt::Display for UpdateResult<Step> {
         if !self.changes.is_empty() {
             writeln!(f)?;
             writeln!(f, "Changes made:")?;
-            for change in &self.changes {
-                writeln!(f, "- {change}")?;
-            }
+            self.changes
+                .iter()
+                .try_for_each(|change| writeln!(f, "- {change}"))?;
         }
 
         writeln!(f)?;

@@ -27,10 +27,7 @@ impl fmt::Display for PlanSummaries {
         if self.0.is_empty() {
             writeln!(f, "No plans found.")
         } else {
-            for plan in &self.0 {
-                write!(f, "{plan}")?;
-            }
-            Ok(())
+            self.0.iter().try_for_each(|plan| write!(f, "{plan}"))
         }
     }
 }
@@ -55,10 +52,7 @@ impl fmt::Display for Steps {
         if self.0.is_empty() {
             writeln!(f, "No steps found.")
         } else {
-            for step in &self.0 {
-                write!(f, "{}", step)?;
-            }
-            Ok(())
+            self.0.iter().try_for_each(|step| write!(f, "{}", step))
         }
     }
 }
