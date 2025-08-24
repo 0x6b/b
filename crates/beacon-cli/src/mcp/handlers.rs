@@ -100,10 +100,11 @@ impl McpHandlers {
     pub async fn create_plan(&self, Parameters(params): Parameters<CreatePlan>) -> McpResult {
         debug!("create_plan: {:?}", params);
 
-        let planner = self.planner.lock().await;
-        let inner_params = params.as_ref();
-        let plan = planner
-            .create_plan_result(inner_params)
+        let plan = self
+            .planner
+            .lock()
+            .await
+            .create_plan(params.as_ref())
             .await
             .map_err(|e| to_mcp_error("Failed to create plan", &e))?;
 
@@ -150,15 +151,16 @@ impl McpHandlers {
     pub async fn show_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("show_plan: {:?}", params);
 
-        let planner = self.planner.lock().await;
-        let inner_params = params.as_ref();
-        let plan = planner
-            .show_plan_with_steps(inner_params)
+        let plan = self
+            .planner
+            .lock()
+            .await
+            .get_plan(params.as_ref())
             .await
             .map_err(|e| to_mcp_error("Failed to get plan", &e))?
             .ok_or_else(|| {
                 ErrorData::internal_error(
-                    format!("Plan with ID {} not found", inner_params.id),
+                    format!("Plan with ID {} not found", params.as_ref().id),
                     None,
                 )
             })?;
@@ -306,7 +308,7 @@ impl McpHandlers {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
         let step = planner
-            .add_step_to_plan(inner_params)
+            .add_step(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to add step: {e}"), None))?;
 
@@ -326,7 +328,7 @@ impl McpHandlers {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
         let step = planner
-            .insert_step_to_plan(inner_params)
+            .insert_step(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to insert step: {e}"), None))?;
 
@@ -346,7 +348,7 @@ impl McpHandlers {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
         planner
-            .swap_step_positions(inner_params)
+            .swap_steps(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to swap steps: {e}"), None))?;
 
@@ -428,7 +430,7 @@ impl McpHandlers {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
         let step = planner
-            .show_step_details(inner_params)
+            .get_step(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to get step: {e}"), None))?
             .ok_or_else(|| {
@@ -453,7 +455,7 @@ impl McpHandlers {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
 
-        match planner.claim_step_atomically(inner_params).await {
+        match planner.claim_step(inner_params).await {
             Ok(Some(_step)) => {
                 let message = format!(
                     "Successfully claimed step {} - it is now marked as 'in progress'\n\n<system-reminder>\nLaunch a focused subagent for this step. Once completed, use `update_step` with the detailed results of what was accomplished.\n</system-reminder>",
@@ -463,7 +465,7 @@ impl McpHandlers {
             }
             Ok(None) => {
                 // Step was not found or not in todo status, get current status
-                let step = planner.show_step_details(inner_params).await.map_err(|e| {
+                let step = planner.get_step(inner_params).await.map_err(|e| {
                     ErrorData::internal_error(format!("Failed to get step: {e}"), None)
                 })?;
 

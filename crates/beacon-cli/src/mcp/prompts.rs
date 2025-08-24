@@ -43,4 +43,3 @@ pub static PROMPT_TEMPLATES: LazyLock<Vec<PromptTemplate>> = LazyLock::new(|| {
         },
     ]
 });
-
