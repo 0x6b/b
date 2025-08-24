@@ -22,16 +22,12 @@ use renderer::TerminalRenderer;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
     env_logger::init();
 
-    // Parse command line arguments
     let cli = Cli::parse();
 
-    // Create terminal renderer based on CLI flags
     let renderer = TerminalRenderer::new(!cli.no_color);
 
-    // Create planner with optional database path from CLI
     let mut planner_builder = PlannerBuilder::new();
     if let Some(path) = cli.database_file {
         debug!("Using database path from CLI: {}", path.display());
@@ -114,7 +110,7 @@ async fn handle_plan_create(
         .context("Failed to create plan")?;
 
     let result = CreateResult::new(plan);
-    renderer.render(&result.to_string())?;
+    renderer.render(&result.to_string());
 
     Ok(())
 }
@@ -137,7 +133,7 @@ async fn handle_plan_list(
     };
 
     let formatted_output = format!("# {title}\n\n{}", plan_summaries);
-    renderer.render(&formatted_output)?;
+    renderer.render(&formatted_output);
 
     Ok(())
 }
@@ -154,7 +150,7 @@ async fn handle_plan_show(
         .context("Failed to get plan")?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
 
-    renderer.render(&plan.to_string())?;
+    renderer.render(&plan.to_string());
 
     Ok(())
 }
@@ -188,7 +184,7 @@ async fn handle_plan_archive(
     );
 
     let status = OperationStatus::success(message);
-    renderer.render(&status.to_string())?;
+    renderer.render(&status.to_string());
     Ok(())
 }
 
@@ -205,7 +201,7 @@ async fn handle_plan_unarchive(
 
     let message = format!("Unarchived plan with ID: {}", params.id);
     let status = OperationStatus::success(message);
-    renderer.render(&status.to_string())?;
+    renderer.render(&status.to_string());
     Ok(())
 }
 
@@ -222,13 +218,12 @@ async fn handle_plan_delete(
             args.id
         );
         let status = OperationStatus::failure(message);
-        renderer.render(&status.to_string())?;
+        renderer.render(&status.to_string());
         return Ok(());
     }
 
     let params: Id = args.into();
 
-    // Get step count before deletion for informative message
     let steps = planner
         .get_steps(&params)
         .await
@@ -255,7 +250,7 @@ async fn handle_plan_delete(
         plan.title, plan.id
     );
     let status = OperationStatus::success(message);
-    renderer.render(&status.to_string())?;
+    renderer.render(&status.to_string());
     Ok(())
 }
 
@@ -278,7 +273,7 @@ async fn handle_plan_search(
     let title = format!("{status_text} plans in directory: {}", params.directory);
 
     let formatted_output = format!("# {title}\n\n{}", plan_summaries);
-    renderer.render(&formatted_output)?;
+    renderer.render(&formatted_output);
 
     Ok(())
 }
@@ -295,7 +290,7 @@ async fn handle_step_add(
         .with_context(|| format!("Failed to add step to plan {}", params.plan_id))?;
 
     let result = CreateResult::new(step);
-    renderer.render(&result.to_string())?;
+    renderer.render(&result.to_string());
 
     Ok(())
 }
@@ -314,7 +309,7 @@ async fn handle_step_insert(
     })?;
 
     let result = CreateResult::new(step);
-    renderer.render(&result.to_string())?;
+    renderer.render(&result.to_string());
 
     Ok(())
 }
@@ -373,7 +368,7 @@ async fn handle_step_update(
         .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
 
     let result = UpdateResult::with_changes(updated_step, changes);
-    renderer.render(&result.to_string())?;
+    renderer.render(&result.to_string());
 
     Ok(())
 }
@@ -390,7 +385,7 @@ async fn handle_step_show(
         .context("Failed to get step")?
         .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
 
-    renderer.render(&step.to_string())?;
+    renderer.render(&step.to_string());
 
     Ok(())
 }
@@ -413,7 +408,7 @@ async fn handle_step_swap(
         params.step1_id, params.step2_id
     );
     let status = OperationStatus::success(message);
-    renderer.render(&status.to_string())?;
+    renderer.render(&status.to_string());
 
     Ok(())
 }

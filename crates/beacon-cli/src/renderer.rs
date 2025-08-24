@@ -3,7 +3,6 @@
 //! This module provides terminal rendering capabilities using termimad
 //! for rich markdown display with optional fallback to plain text.
 
-use anyhow::Result;
 use termimad::{crossterm::style::Color, MadSkin};
 
 /// Terminal renderer that can switch between rich and plain text output
@@ -31,7 +30,7 @@ impl TerminalRenderer {
     }
 
     /// Render markdown text to terminal
-    pub fn render(&self, markdown: &str) -> Result<()> {
+    pub fn render(&self, markdown: &str) {
         if self.rich_enabled {
             // Process line by line to show hash symbols for headers
             for line in markdown.lines() {
@@ -47,7 +46,6 @@ impl TerminalRenderer {
         } else {
             print!("{}", markdown);
         }
-        Ok(())
     }
 }
 
