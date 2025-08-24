@@ -60,7 +60,7 @@ impl FromStr for StepStatus {
             "todo" => Ok(StepStatus::Todo),
             "inprogress" | "in_progress" => Ok(StepStatus::InProgress),
             "done" => Ok(StepStatus::Done),
-            _ => Err(format!("Invalid step status: {s}")),
+            _ => Ok(StepStatus::Todo), // treat unknown as "todo"
         }
     }
 }

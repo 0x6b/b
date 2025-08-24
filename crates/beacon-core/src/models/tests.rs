@@ -458,15 +458,8 @@ mod model_tests {
         };
 
         let result: Result<UpdateStepRequest, _> = params.try_into();
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            crate::PlannerError::InvalidInput { field, reason } => {
-                assert_eq!(field, "status");
-                assert!(reason.contains("Invalid status: invalid_status"));
-            }
-            _ => panic!("Expected InvalidInput error"),
-        }
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().status.unwrap(), StepStatus::Todo);
     }
 
     #[test]

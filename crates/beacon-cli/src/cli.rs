@@ -39,19 +39,7 @@ impl Cli {
         match command {
             Add(args) => self.add_step(&args.into()).await,
             Insert(args) => self.insert_step(&args.into()).await,
-            Update(args) => {
-                let params: UpdateStep = args.into();
-
-                // Parse status using FromStr implementation
-                let status = params.status.as_ref().map(|s| {
-                    StepStatus::from_str(s).unwrap_or_else(|_| {
-                        eprintln!("Warning: Invalid status '{}', defaulting to 'todo'", s);
-                        StepStatus::Todo
-                    })
-                });
-
-                self.update_step(&params, status).await
-            }
+            Update(args) => self.update_step(&args.into()).await,
             Show(args) => self.show_step(&args.into()).await,
             Swap(args) => self.swap_step(&args.into()).await,
         }
@@ -117,8 +105,7 @@ impl Cli {
             "Archived plan '{}' (ID: {}). Use 'beacon plan unarchive {}' to restore.",
             plan.title, params.id, params.id
         );
-        self.renderer
-            .render(OperationStatus::success(message));
+        self.renderer.render(OperationStatus::success(message));
         Ok(())
     }
 
@@ -131,8 +118,7 @@ impl Cli {
             .with_context(|| format!("Failed to unarchive plan {}", params.id))?;
 
         let message = format!("Unarchived plan with ID: {}", params.id);
-        self.renderer
-            .render(OperationStatus::success(message));
+        self.renderer.render(OperationStatus::success(message));
         Ok(())
     }
 
@@ -149,8 +135,7 @@ impl Cli {
             "Permanently deleted plan '{}' (ID: {}). This action cannot be undone.",
             plan.title, plan.id
         );
-        self.renderer
-            .render(OperationStatus::success(message));
+        self.renderer.render(OperationStatus::success(message));
         Ok(())
     }
 
@@ -162,13 +147,18 @@ impl Cli {
             .await
             .context("Failed to search plans")?;
 
-        let title = format!("{} plans in directory: {}", if params.archived {
-            "ARCHIVED"
-        } else {
-            "ACTIVE"
-        }, params.directory);
+        let title = format!(
+            "{} plans in directory: {}",
+            if params.archived {
+                "ARCHIVED"
+            } else {
+                "ACTIVE"
+            },
+            params.directory
+        );
 
-        self.renderer.render(format!("# {title}\n\n{plan_summaries}"));
+        self.renderer
+            .render(format!("# {title}\n\n{plan_summaries}"));
         Ok(())
     }
 
@@ -185,25 +175,21 @@ impl Cli {
 
     /// Handle step insert command
     async fn insert_step(&self, params: &InsertStep) -> Result<()> {
-        let step = self
-            .planner
-            .insert_step(params)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to insert step into plan {} at position {}",
-                    params.step.plan_id, params.position
-                )
-            })?;
+        let step = self.planner.insert_step(params).await.with_context(|| {
+            format!(
+                "Failed to insert step into plan {} at position {}",
+                params.step.plan_id, params.position
+            )
+        })?;
 
         self.renderer.render(CreateResult::new(step));
         Ok(())
     }
 
     /// Handle step update command
-    async fn update_step(&self, params: &UpdateStep, status: Option<StepStatus>) -> Result<()> {
+    async fn update_step(&self, params: &UpdateStep) -> Result<()> {
         // Check if we have anything to update
-        if status.is_none()
+        if params.status.is_none()
             && params.title.is_none()
             && params.description.is_none()
             && params.acceptance_criteria.is_none()
@@ -215,8 +201,11 @@ impl Cli {
             ));
         }
 
+        let status =
+            StepStatus::from_str(&params.status.as_ref().unwrap_or(&"".to_string())).unwrap();
+
         // Validate result requirement for done status
-        if let Some(StepStatus::Done) = status {
+        if let StepStatus::Done = status {
             if params.result.is_none() {
                 return Err(anyhow::anyhow!(
                     "Result description is required when marking a step as done. Use --result to describe what was accomplished."
@@ -226,7 +215,7 @@ impl Cli {
 
         // Build list of changes made for display
         let mut changes = Vec::new();
-        if status.is_some() {
+        if params.status.is_some() {
             changes.push("status".to_string());
         }
         if params.title.is_some() {
@@ -271,15 +260,12 @@ impl Cli {
 
     /// Handle step swap command
     async fn swap_step(&self, params: &SwapSteps) -> Result<()> {
-        self.planner
-            .swap_steps(params)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to swap steps {} and {}",
-                    params.step1_id, params.step2_id
-                )
-            })?;
+        self.planner.swap_steps(params).await.with_context(|| {
+            format!(
+                "Failed to swap steps {} and {}",
+                params.step1_id, params.step2_id
+            )
+        })?;
 
         let message = format!(
             "Swapped order of steps {} and {}",

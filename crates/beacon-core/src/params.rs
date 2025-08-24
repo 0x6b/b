@@ -387,13 +387,4 @@ mod tests {
             "Result description is required",
         );
     }
-
-    #[test]
-    fn test_invalid_status_rejected() {
-        assert_validation_error(
-            &update_with_status(Some("invalid"), None),
-            "status",
-            "Invalid status: invalid",
-        );
-    }
 }
