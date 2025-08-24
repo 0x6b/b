@@ -215,27 +215,27 @@ impl super::Database {
         if let Some(f) = filter
             && let Some(ref completion) = f.completion_status
         {
-            let mut filtered_plans =
+            let filtered_plans =
                 self.filter_by_completion_with_counts(plans_with_counts, completion);
-            // Eagerly load steps for each filtered plan
-            for plan in &mut filtered_plans {
-                plan.steps = self.get_steps(plan.id)?;
-            }
-            return Ok(filtered_plans);
+            // Eagerly load steps for each filtered plan using functional approach
+            return filtered_plans
+                .into_iter()
+                .map(|mut plan| {
+                    plan.steps = self.get_steps(plan.id)?;
+                    Ok(plan)
+                })
+                .collect();
         }
 
         // If no completion filter, populate steps for each plan and return
-        let mut plans: Vec<Plan> = plans_with_counts
+        plans_with_counts
             .into_iter()
             .map(|(plan, _, _)| plan)
-            .collect();
-
-        // Eagerly load steps for each plan
-        for plan in &mut plans {
-            plan.steps = self.get_steps(plan.id)?;
-        }
-
-        Ok(plans)
+            .map(|mut plan| {
+                plan.steps = self.get_steps(plan.id)?;
+                Ok(plan)
+            })
+            .collect()
     }
 
     /// Filters plans by completion status using counts from the view.
