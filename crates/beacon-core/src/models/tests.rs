@@ -619,10 +619,13 @@ mod model_tests {
 
         // Test archived builder
         let archived_filter = PlanFilter::new()
-            .directory("/archived/path".to_string())  
+            .directory("/archived/path".to_string())
             .archived(true);
 
-        assert_eq!(archived_filter.directory, Some("/archived/path".to_string()));
+        assert_eq!(
+            archived_filter.directory,
+            Some("/archived/path".to_string())
+        );
         assert_eq!(archived_filter.status, Some(PlanStatus::Archived));
         assert!(archived_filter.include_archived);
     }
@@ -631,7 +634,7 @@ mod model_tests {
     fn test_plan_filter_const_default() {
         // Test that const constructor creates proper defaults
         let filter = PlanFilter::new();
-        
+
         assert_eq!(filter.title_contains, None);
         assert_eq!(filter.directory, None);
         assert_eq!(filter.created_after, None);
@@ -674,7 +677,7 @@ mod model_tests {
 
         // Empty references should appear in JSON as default (empty array)
         assert!(step_json.contains("\"references\":[]"));
-        
+
         // Empty steps should appear in JSON as default (empty array)
         assert!(plan_json.contains("\"steps\":[]"));
 
@@ -713,7 +716,7 @@ mod model_tests {
 
         // Test result field behavior
         assert!(step_json.contains("\"result\":null"));
-        
+
         // Test with non-null result
         let step_with_result = Step {
             id: 1,

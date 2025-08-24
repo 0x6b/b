@@ -6,6 +6,7 @@ use beacon_core::{
     display::{CreateResult, OperationStatus},
     params as core, Planner,
 };
+use log::debug;
 use rmcp::{
     handler::server::tool::Parameters,
     model::{
@@ -19,7 +20,6 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::Mutex;
-use log::debug;
 
 use super::{errors::to_mcp_error, prompts::get_prompt_templates};
 

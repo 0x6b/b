@@ -103,8 +103,6 @@ impl Planner {
         self.create_plan(params).await
     }
 
-
-
     /// Handle permanently deleting a plan with confirmation.
     ///
     /// Permanently removes a plan and all its associated steps from the
@@ -116,7 +114,8 @@ impl Planner {
     ///
     /// # Arguments
     ///
-    /// * `params` - DeletePlan parameters containing plan ID and confirmation flag
+    /// * `params` - DeletePlan parameters containing plan ID and confirmation
+    ///   flag
     ///
     /// # Returns
     ///
@@ -133,7 +132,10 @@ impl Planner {
     /// # use beacon_core::{params::DeletePlan, PlannerBuilder};
     /// # async {
     /// let planner = PlannerBuilder::new().build().await?;
-    /// let params = DeletePlan { id: 1, confirmed: true };
+    /// let params = DeletePlan {
+    ///     id: 1,
+    ///     confirmed: true,
+    /// };
     /// let deleted_plan = planner.delete_plan(&params).await?;
     /// # Result::<(), beacon_core::PlannerError>::Ok(())
     /// # };

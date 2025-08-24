@@ -86,7 +86,8 @@ impl Planner {
     }
 
     /// Archives a plan (soft delete).
-    /// Returns the archived plan details if successful, None if the plan doesn't exist.
+    /// Returns the archived plan details if successful, None if the plan
+    /// doesn't exist.
     pub async fn archive_plan(&self, params: &Id) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
@@ -102,7 +103,8 @@ impl Planner {
     }
 
     /// Unarchives a plan (restores from archive).
-    /// Returns the unarchived plan details if successful, None if the plan doesn't exist.
+    /// Returns the unarchived plan details if successful, None if the plan
+    /// doesn't exist.
     pub async fn unarchive_plan(&self, params: &Id) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;

@@ -8,7 +8,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
-use crate::error::{Result, DatabaseResultExt};
+use crate::error::{DatabaseResultExt, Result};
 
 pub mod migrations;
 pub mod plan_queries;

@@ -15,8 +15,7 @@ impl super::Database {
             // Convert relative path to absolute
             let cwd = current_dir().map_err(|_| PlannerError::InvalidInput {
                 field: "directory".into(),
-                reason: "Cannot resolve current working directory to make path absolute"
-                    .into(),
+                reason: "Cannot resolve current working directory to make path absolute".into(),
             })?;
             let absolute_path = cwd.join(path);
             // Normalize the path to resolve ".." and "." components without requiring the

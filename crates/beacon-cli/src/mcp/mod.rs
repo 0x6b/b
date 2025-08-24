@@ -8,6 +8,7 @@ use std::{future::Future, sync::Arc};
 
 use anyhow::Result;
 use beacon_core::Planner;
+use log::{debug, error, info};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
@@ -21,7 +22,6 @@ use tokio::{
     signal::unix::{signal, SignalKind},
     sync::Mutex,
 };
-use log::{debug, error, info};
 
 pub mod errors;
 pub mod handlers;
@@ -29,8 +29,8 @@ pub mod prompts;
 
 // Re-export parameter types and result type from handlers for external use
 pub use handlers::{
-    CreatePlan, DeletePlan, Id, InsertStep, ListPlans, McpResult, SearchPlans, StepCreate, SwapSteps,
-    UpdateStep,
+    CreatePlan, DeletePlan, Id, InsertStep, ListPlans, McpResult, SearchPlans, StepCreate,
+    SwapSteps, UpdateStep,
 };
 
 /// MCP server for Beacon

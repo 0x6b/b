@@ -19,10 +19,7 @@ pub struct PromptTemplate {
 
 /// Get predefined prompt templates for task planning
 pub fn get_prompt_templates() -> Vec<PromptTemplate> {
-    vec![
-        create_plan_template(),
-        execute_plan_template(),
-    ]
+    vec![create_plan_template(), execute_plan_template()]
 }
 
 fn create_plan_template() -> PromptTemplate {
@@ -30,14 +27,12 @@ fn create_plan_template() -> PromptTemplate {
         name: "plan".to_string(),
         description: "Create a structured action plan using Beacon's MCP tools".to_string(),
         template: include_str!("../../templates/plan.md").to_string(),
-            arguments: vec![
-                PromptTemplateArg {
-                    name: "goal".to_string(),
-                    description: "The goal or outcome to create a plan for".to_string(),
-                    required: true,
-                },
-            ],
-        }
+        arguments: vec![PromptTemplateArg {
+            name: "goal".to_string(),
+            description: "The goal or outcome to create a plan for".to_string(),
+            required: true,
+        }],
+    }
 }
 
 fn execute_plan_template() -> PromptTemplate {

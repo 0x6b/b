@@ -10,23 +10,30 @@ use crate::{
 
 // Optimized SQL queries as const strings for compile-time optimization
 const CHECK_PLAN_EXISTS_SQL: &str = "SELECT EXISTS(SELECT 1 FROM plans WHERE id = ?1)";
-const GET_MAX_STEP_ORDER_SQL: &str = "SELECT COALESCE(MAX(step_order), -1) + 1 FROM steps WHERE plan_id = ?1";
+const GET_MAX_STEP_ORDER_SQL: &str =
+    "SELECT COALESCE(MAX(step_order), -1) + 1 FROM steps WHERE plan_id = ?1";
 const INSERT_STEP_SQL: &str = "INSERT INTO steps (plan_id, title, description, acceptance_criteria, step_references, status, result, step_order, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)";
 const UPDATE_PLAN_TIMESTAMP_SQL: &str = "UPDATE plans SET updated_at = ?1 WHERE id = ?2";
-const UPDATE_PLAN_TIMESTAMP_BY_STEP_SQL: &str = "UPDATE plans SET updated_at = ?1 WHERE id = (SELECT plan_id FROM steps WHERE id = ?2)";
+const UPDATE_PLAN_TIMESTAMP_BY_STEP_SQL: &str =
+    "UPDATE plans SET updated_at = ?1 WHERE id = (SELECT plan_id FROM steps WHERE id = ?2)";
 const GET_MAX_STEP_ORDER_ONLY_SQL: &str = "SELECT MAX(step_order) FROM steps WHERE plan_id = ?1";
-const UPDATE_STEP_ORDERS_INCREMENT_SQL: &str = "UPDATE steps SET step_order = step_order + 1 WHERE plan_id = ?1 AND step_order >= ?2";
+const UPDATE_STEP_ORDERS_INCREMENT_SQL: &str =
+    "UPDATE steps SET step_order = step_order + 1 WHERE plan_id = ?1 AND step_order >= ?2";
 const SELECT_STEP_DETAILS_SQL: &str = "SELECT title, description, acceptance_criteria, step_references, status, result FROM steps WHERE id = ?1";
 const UPDATE_STEP_SQL: &str = "UPDATE steps SET title = ?1, description = ?2, acceptance_criteria = ?3, step_references = ?4, status = ?5, result = ?6, updated_at = ?7 WHERE id = ?8";
 const SELECT_STEPS_BY_PLAN_SQL: &str = "SELECT id, plan_id, title, description, acceptance_criteria, step_references, status, result, step_order, created_at, updated_at FROM steps WHERE plan_id = ?1 ORDER BY step_order";
 const SELECT_STEP_BY_ID_SQL: &str = "SELECT id, plan_id, title, description, acceptance_criteria, step_references, status, result, step_order, created_at, updated_at FROM steps WHERE id = ?1";
 const SELECT_STEP_STATUS_SQL: &str = "SELECT status FROM steps WHERE id = ?1";
-const UPDATE_STEP_STATUS_CLAIMED_SQL: &str = "UPDATE steps SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
+const UPDATE_STEP_STATUS_CLAIMED_SQL: &str =
+    "UPDATE steps SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
 const SELECT_STEP_ORDER_SQL: &str = "SELECT plan_id, step_order FROM steps WHERE id = ?1";
-const UPDATE_STEP_ORDER_TEMP_SQL: &str = "UPDATE steps SET step_order = -1, updated_at = ?1 WHERE id = ?2";
-const UPDATE_STEP_ORDER_SQL: &str = "UPDATE steps SET step_order = ?1, updated_at = ?2 WHERE id = ?3";
+const UPDATE_STEP_ORDER_TEMP_SQL: &str =
+    "UPDATE steps SET step_order = -1, updated_at = ?1 WHERE id = ?2";
+const UPDATE_STEP_ORDER_SQL: &str =
+    "UPDATE steps SET step_order = ?1, updated_at = ?2 WHERE id = ?3";
 const DELETE_STEP_SQL: &str = "DELETE FROM steps WHERE id = ?1";
-const UPDATE_STEP_ORDERS_DECREMENT_SQL: &str = "UPDATE steps SET step_order = step_order - 1 WHERE plan_id = ?1 AND step_order > ?2";
+const UPDATE_STEP_ORDERS_DECREMENT_SQL: &str =
+    "UPDATE steps SET step_order = step_order - 1 WHERE plan_id = ?1 AND step_order > ?2";
 
 impl super::Database {
     /// Helper function to construct a Step from a database row
@@ -83,11 +90,9 @@ impl super::Database {
 
         // Check if plan exists
         let plan_exists: bool = tx
-            .query_row(
-                CHECK_PLAN_EXISTS_SQL,
-                params![plan_id as i64],
-                |row| row.get(0),
-            )
+            .query_row(CHECK_PLAN_EXISTS_SQL, params![plan_id as i64], |row| {
+                row.get(0)
+            })
             .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
 
         if !plan_exists {
@@ -95,11 +100,9 @@ impl super::Database {
         }
 
         let next_order: i64 = tx
-            .query_row(
-                GET_MAX_STEP_ORDER_SQL,
-                params![plan_id as i64],
-                |row| row.get(0),
-            )
+            .query_row(GET_MAX_STEP_ORDER_SQL, params![plan_id as i64], |row| {
+                row.get(0)
+            })
             .map_err(|e| PlannerError::database_error("Failed to get next step order", e))?;
 
         let now = Timestamp::now();
@@ -121,7 +124,7 @@ impl super::Database {
                 acceptance_criteria,
                 references_str.as_deref(),
                 "todo",
-                None::<String>,  // result is NULL for new steps
+                None::<String>, // result is NULL for new steps
                 next_order,
                 &now_str,
                 &now_str
@@ -132,14 +135,10 @@ impl super::Database {
         let id = tx.last_insert_rowid() as u64;
 
         // Update plan's updated_at
-        tx.execute(
-            UPDATE_PLAN_TIMESTAMP_SQL,
-            params![&now_str, plan_id as i64],
-        )
-        .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
+        tx.execute(UPDATE_PLAN_TIMESTAMP_SQL, params![&now_str, plan_id as i64])
+            .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         Ok(Step {
             id,
@@ -175,11 +174,9 @@ impl super::Database {
 
         // Check if plan exists
         let plan_exists: bool = tx
-            .query_row(
-                CHECK_PLAN_EXISTS_SQL,
-                params![plan_id as i64],
-                |row| row.get(0),
-            )
+            .query_row(CHECK_PLAN_EXISTS_SQL, params![plan_id as i64], |row| {
+                row.get(0)
+            })
             .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
 
         if !plan_exists {
@@ -230,7 +227,7 @@ impl super::Database {
                 acceptance_criteria,
                 references_str.as_deref(),
                 "todo",
-                None::<String>,  // result is NULL for new steps
+                None::<String>, // result is NULL for new steps
                 position as i64,
                 &now_str,
                 &now_str
@@ -241,14 +238,10 @@ impl super::Database {
         let id = tx.last_insert_rowid() as u64;
 
         // Update plan's updated_at
-        tx.execute(
-            UPDATE_PLAN_TIMESTAMP_SQL,
-            params![&now_str, plan_id as i64],
-        )
-        .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
+        tx.execute(UPDATE_PLAN_TIMESTAMP_SQL, params![&now_str, plan_id as i64])
+            .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         Ok(Step {
             id,
@@ -274,8 +267,7 @@ impl super::Database {
             if request.result.is_none() {
                 return Err(PlannerError::InvalidInput {
                     field: "result".into(),
-                    reason: "Result description is required when marking a step as done"
-                        .into(),
+                    reason: "Result description is required when marking a step as done".into(),
                 });
             }
         }
@@ -312,9 +304,9 @@ impl super::Database {
             String,
             Option<String>,
         ) = {
-            let mut stmt = tx
-                .prepare(SELECT_STEP_DETAILS_SQL)
-                .map_err(|e| PlannerError::database_error("Failed to prepare select statement", e))?;
+            let mut stmt = tx.prepare(SELECT_STEP_DETAILS_SQL).map_err(|e| {
+                PlannerError::database_error("Failed to prepare select statement", e)
+            })?;
 
             stmt.query_row(params![step_id as i64], |row| {
                 Ok((
@@ -386,8 +378,7 @@ impl super::Database {
         )
         .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         Ok(())
     }
@@ -434,11 +425,9 @@ impl super::Database {
 
         // Check current status and update atomically
         let current_status: Option<String> = tx
-            .query_row(
-                SELECT_STEP_STATUS_SQL,
-                params![step_id as i64],
-                |row| row.get(0),
-            )
+            .query_row(SELECT_STEP_STATUS_SQL, params![step_id as i64], |row| {
+                row.get(0)
+            })
             .optional()
             .map_err(|e| PlannerError::database_error("Failed to query step status", e))?;
 
@@ -470,12 +459,15 @@ impl super::Database {
 
                 // Get the updated step details
                 let step = tx
-                    .query_row(SELECT_STEP_BY_ID_SQL, params![step_id as i64], Self::build_step_from_row)
+                    .query_row(
+                        SELECT_STEP_BY_ID_SQL,
+                        params![step_id as i64],
+                        Self::build_step_from_row,
+                    )
                     .optional()
                     .map_err(|e| PlannerError::database_error("Failed to query claimed step", e))?;
 
-                tx.commit()
-                    .db_context("Failed to commit transaction")?;
+                tx.commit().db_context("Failed to commit transaction")?;
 
                 Ok(step)
             }
@@ -499,11 +491,9 @@ impl super::Database {
             .db_context("Failed to begin transaction")?;
 
         let (plan_id1, order1): (i64, i64) = tx
-            .query_row(
-                SELECT_STEP_ORDER_SQL,
-                params![step_id1 as i64],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
+            .query_row(SELECT_STEP_ORDER_SQL, params![step_id1 as i64], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
             .map_err(|e| {
                 if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
                     PlannerError::StepNotFound { id: step_id1 }
@@ -513,11 +503,9 @@ impl super::Database {
             })?;
 
         let (plan_id2, order2): (i64, i64) = tx
-            .query_row(
-                SELECT_STEP_ORDER_SQL,
-                params![step_id2 as i64],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
+            .query_row(SELECT_STEP_ORDER_SQL, params![step_id2 as i64], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
             .map_err(|e| {
                 if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
                     PlannerError::StepNotFound { id: step_id2 }
@@ -557,14 +545,10 @@ impl super::Database {
         .map_err(|e| PlannerError::database_error("Failed to update first step final order", e))?;
 
         // Update plan's updated_at
-        tx.execute(
-            UPDATE_PLAN_TIMESTAMP_SQL,
-            params![&now_str, plan_id1],
-        )
-        .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
+        tx.execute(UPDATE_PLAN_TIMESTAMP_SQL, params![&now_str, plan_id1])
+            .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         Ok(())
     }
@@ -577,11 +561,9 @@ impl super::Database {
             .db_context("Failed to begin transaction")?;
 
         let (plan_id, step_order): (i64, i64) = tx
-            .query_row(
-                SELECT_STEP_ORDER_SQL,
-                params![step_id as i64],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
+            .query_row(SELECT_STEP_ORDER_SQL, params![step_id as i64], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
             .map_err(|e| {
                 if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
                     PlannerError::StepNotFound { id: step_id }
@@ -603,14 +585,10 @@ impl super::Database {
 
         // Update plan's updated_at
         let now_str = Timestamp::now().to_string();
-        tx.execute(
-            UPDATE_PLAN_TIMESTAMP_SQL,
-            params![&now_str, plan_id],
-        )
-        .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
+        tx.execute(UPDATE_PLAN_TIMESTAMP_SQL, params![&now_str, plan_id])
+            .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         Ok(())
     }

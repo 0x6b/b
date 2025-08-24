@@ -164,7 +164,8 @@ impl Planner {
     ///
     /// # Returns
     ///
-    /// The step details if successfully claimed, None if the step doesn't exist or cannot be claimed
+    /// The step details if successfully claimed, None if the step doesn't exist
+    /// or cannot be claimed
     ///
     /// # Examples
     ///

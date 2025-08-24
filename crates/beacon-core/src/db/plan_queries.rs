@@ -12,8 +12,10 @@ use crate::{
 const INSERT_PLAN_SQL: &str = "INSERT INTO plans (title, description, directory, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)";
 const SELECT_PLAN_SQL: &str = "SELECT id, title, description, status, directory, created_at, updated_at FROM plans WHERE id = ?1";
 const CHECK_PLAN_EXISTS_SQL: &str = "SELECT EXISTS(SELECT 1 FROM plans WHERE id = ?1)";
-const UPDATE_PLAN_ARCHIVE_SQL: &str = "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
-const UPDATE_PLAN_UNARCHIVE_SQL: &str = "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
+const UPDATE_PLAN_ARCHIVE_SQL: &str =
+    "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
+const UPDATE_PLAN_UNARCHIVE_SQL: &str =
+    "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
 const DELETE_PLAN_STEPS_SQL: &str = "DELETE FROM steps WHERE plan_id = ?1";
 const DELETE_PLAN_SQL: &str = "DELETE FROM plans WHERE id = ?1";
 
@@ -53,8 +55,7 @@ impl super::Database {
 
         let id = tx.last_insert_rowid() as u64;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         Ok(Plan {
             id,
@@ -117,7 +118,8 @@ impl super::Database {
 
     /// Lists all plans with optional filtering.
     pub fn list_plans(&self, filter: Option<&PlanFilter>) -> Result<Vec<Plan>> {
-        // Choose the appropriate view based on whether we want to include archived plans
+        // Choose the appropriate view based on whether we want to include archived
+        // plans
         let view_name = if filter.as_ref().is_some_and(|f| f.include_archived) {
             ALL_PLAN_SUMMARIES_VIEW
         } else {
@@ -259,7 +261,8 @@ impl super::Database {
     }
 
     /// Archives a plan (soft delete).
-    /// Returns the archived plan details if successful, None if the plan doesn't exist.
+    /// Returns the archived plan details if successful, None if the plan
+    /// doesn't exist.
     pub fn archive_plan(&mut self, id: u64) -> Result<Option<Plan>> {
         let tx = self
             .connection
@@ -282,11 +285,7 @@ impl super::Database {
         if rows_affected == 0 {
             // Check if plan exists
             let exists: bool = tx
-                .query_row(
-                    CHECK_PLAN_EXISTS_SQL,
-                    params![id as i64],
-                    |row| row.get(0),
-                )
+                .query_row(CHECK_PLAN_EXISTS_SQL, params![id as i64], |row| row.get(0))
                 .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
 
             if !exists {
@@ -329,8 +328,7 @@ impl super::Database {
             .optional()
             .map_err(|e| PlannerError::database_error("Failed to query archived plan", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         // Load steps for the plan if it exists
         if let Some(ref mut plan) = plan {
@@ -341,7 +339,8 @@ impl super::Database {
     }
 
     /// Unarchives a plan (restores from archive).
-    /// Returns the unarchived plan details if successful, None if the plan doesn't exist.
+    /// Returns the unarchived plan details if successful, None if the plan
+    /// doesn't exist.
     pub fn unarchive_plan(&mut self, id: u64) -> Result<Option<Plan>> {
         let tx = self
             .connection
@@ -364,11 +363,7 @@ impl super::Database {
         if rows_affected == 0 {
             // Check if plan exists
             let exists: bool = tx
-                .query_row(
-                    CHECK_PLAN_EXISTS_SQL,
-                    params![id as i64],
-                    |row| row.get(0),
-                )
+                .query_row(CHECK_PLAN_EXISTS_SQL, params![id as i64], |row| row.get(0))
                 .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
 
             if !exists {
@@ -411,8 +406,7 @@ impl super::Database {
             .optional()
             .map_err(|e| PlannerError::database_error("Failed to query unarchived plan", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         // Load steps for the plan if it exists
         if let Some(ref mut plan) = plan {
@@ -432,11 +426,7 @@ impl super::Database {
 
         // Check if plan exists
         let exists: bool = tx
-            .query_row(
-                CHECK_PLAN_EXISTS_SQL,
-                params![id as i64],
-                |row| row.get(0),
-            )
+            .query_row(CHECK_PLAN_EXISTS_SQL, params![id as i64], |row| row.get(0))
             .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
 
         if !exists {
@@ -453,8 +443,7 @@ impl super::Database {
         tx.execute(DELETE_PLAN_SQL, params![id as i64])
             .map_err(|e| PlannerError::database_error("Failed to delete plan", e))?;
 
-        tx.commit()
-            .db_context("Failed to commit transaction")?;
+        tx.commit().db_context("Failed to commit transaction")?;
 
         Ok(())
     }

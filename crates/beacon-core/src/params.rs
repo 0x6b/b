@@ -303,8 +303,13 @@ mod tests {
         }
     }
 
-    /// Helper function to assert validation succeeds and returns expected values
-    fn assert_validates_to(params: &UpdateStep, expected_status: Option<StepStatus>, expected_result: Option<&str>) {
+    /// Helper function to assert validation succeeds and returns expected
+    /// values
+    fn assert_validates_to(
+        params: &UpdateStep,
+        expected_status: Option<StepStatus>,
+        expected_result: Option<&str>,
+    ) {
         let result = params.validate();
         assert!(result.is_ok(), "Validation should succeed");
 
@@ -314,15 +319,23 @@ mod tests {
     }
 
     /// Helper function to assert validation fails with specific error details
-    fn assert_validation_error(params: &UpdateStep, expected_field: &str, expected_reason_contains: &str) {
+    fn assert_validation_error(
+        params: &UpdateStep,
+        expected_field: &str,
+        expected_reason_contains: &str,
+    ) {
         let result = params.validate();
         assert!(result.is_err(), "Validation should fail");
 
         match result.unwrap_err() {
             PlannerError::InvalidInput { field, reason } => {
                 assert_eq!(field, expected_field);
-                assert!(reason.contains(expected_reason_contains), 
-                    "Expected reason to contain '{}', got: {}", expected_reason_contains, reason);
+                assert!(
+                    reason.contains(expected_reason_contains),
+                    "Expected reason to contain '{}', got: {}",
+                    expected_reason_contains,
+                    reason
+                );
             }
             _ => panic!("Expected InvalidInput error"),
         }
@@ -331,15 +344,27 @@ mod tests {
     #[test]
     fn test_valid_status_transitions() {
         // Test valid status changes without result
-        assert_validates_to(&update_with_status(Some("todo"), None), Some(StepStatus::Todo), None);
-        assert_validates_to(&update_with_status(Some("inprogress"), None), Some(StepStatus::InProgress), None);
-        assert_validates_to(&update_with_status(Some("in_progress"), None), Some(StepStatus::InProgress), None);
-        
+        assert_validates_to(
+            &update_with_status(Some("todo"), None),
+            Some(StepStatus::Todo),
+            None,
+        );
+        assert_validates_to(
+            &update_with_status(Some("inprogress"), None),
+            Some(StepStatus::InProgress),
+            None,
+        );
+        assert_validates_to(
+            &update_with_status(Some("in_progress"), None),
+            Some(StepStatus::InProgress),
+            None,
+        );
+
         // Test done status with result
         assert_validates_to(
-            &update_with_status(Some("done"), Some("Successfully completed")), 
-            Some(StepStatus::Done), 
-            Some("Successfully completed")
+            &update_with_status(Some("done"), Some("Successfully completed")),
+            Some(StepStatus::Done),
+            Some("Successfully completed"),
         );
     }
 
@@ -347,7 +372,11 @@ mod tests {
     fn test_no_status_changes() {
         // Test validation with no status change
         assert_validates_to(&UpdateStep::default(), None, None);
-        assert_validates_to(&update_with_status(None, Some("Some result")), None, Some("Some result"));
+        assert_validates_to(
+            &update_with_status(None, Some("Some result")),
+            None,
+            Some("Some result"),
+        );
     }
 
     #[test]
@@ -355,7 +384,7 @@ mod tests {
         assert_validation_error(
             &update_with_status(Some("done"), None),
             "result",
-            "Result description is required"
+            "Result description is required",
         );
     }
 
@@ -364,7 +393,7 @@ mod tests {
         assert_validation_error(
             &update_with_status(Some("invalid"), None),
             "status",
-            "Invalid status: invalid"
+            "Invalid status: invalid",
         );
     }
 }

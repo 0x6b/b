@@ -161,7 +161,10 @@ fn test_claim_step() {
     )
     .expect("Failed to update status");
     let claimed_done = db.claim_step(step.id).expect("Failed to claim step");
-    assert!(claimed_done.is_none(), "Should not be able to claim a done step");
+    assert!(
+        claimed_done.is_none(),
+        "Should not be able to claim a done step"
+    );
 
     // Test claiming non-existent step - should return None
     let result = db.claim_step(999).expect("Failed to query step");

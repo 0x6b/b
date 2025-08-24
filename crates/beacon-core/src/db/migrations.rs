@@ -1,6 +1,6 @@
 //! Database schema initialization and migrations.
 
-use crate::error::{PlannerError, Result, DatabaseResultExt};
+use crate::error::{DatabaseResultExt, PlannerError, Result};
 
 impl super::Database {
     /// Initializes the database schema using the embedded SQL file.

@@ -111,7 +111,8 @@ impl PlannerError {
     }
 }
 
-/// Extension trait for Result to provide concise error mapping with anyhow-style context.
+/// Extension trait for Result to provide concise error mapping with
+/// anyhow-style context.
 pub trait ResultExt<T, E> {
     /// Add context to any error type, converting to PlannerError.
     fn with_context<C>(self, context: C) -> Result<T>
@@ -145,10 +146,8 @@ where
     where
         C: std::fmt::Display + Send + Sync + 'static,
     {
-        self.map_err(|e| {
-            PlannerError::Configuration {
-                message: format!("{}: {}", context, e),
-            }
+        self.map_err(|e| PlannerError::Configuration {
+            message: format!("{}: {}", context, e),
         })
     }
 
@@ -157,10 +156,8 @@ where
         C: std::fmt::Display + Send + Sync + 'static,
         F: FnOnce() -> C,
     {
-        self.map_err(|e| {
-            PlannerError::Configuration {
-                message: format!("{}: {}", f(), e),
-            }
+        self.map_err(|e| PlannerError::Configuration {
+            message: format!("{}: {}", f(), e),
         })
     }
 }

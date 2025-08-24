@@ -3,7 +3,8 @@
 mod common;
 
 use beacon_core::params::{
-    CreatePlan, DeletePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
+    CreatePlan, DeletePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps,
+    UpdateStep,
 };
 
 #[tokio::test]
@@ -259,7 +260,10 @@ async fn test_delete_plan_with_confirmation() {
 
     // Test delete_plan
     let deleted_plan = planner
-        .delete_plan(&DeletePlan { id: plan.id, confirmed: true })
+        .delete_plan(&DeletePlan {
+            id: plan.id,
+            confirmed: true,
+        })
         .await
         .expect("Failed to delete plan")
         .expect("Plan should exist");
@@ -297,9 +301,12 @@ async fn test_delete_plan_confirmation_required() {
 
     // Test delete_plan without confirmation - should fail
     let result = planner
-        .delete_plan(&DeletePlan { id: plan.id, confirmed: false })
+        .delete_plan(&DeletePlan {
+            id: plan.id,
+            confirmed: false,
+        })
         .await;
-    
+
     assert!(result.is_err());
     let error_msg = format!("{}", result.unwrap_err());
     assert!(error_msg.contains("confirmation"));
