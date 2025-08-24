@@ -1,109 +1,295 @@
-//! Command-line interface definitions using clap
-//!
-//! This module defines the complete CLI structure using clap's derive API,
-//! implementing the parameter wrapper pattern for clean separation between
-//! CLI framework concerns and core domain logic.
-//!
-//! ## Parameter Wrapper Pattern Implementation
-//!
-//! This module demonstrates the CLI side of the parameter wrapper pattern:
-//!
-//! ```text
-//! User Input → CLI Args (clap) → Core Params → Business Logic
-//! ```
-//!
-//! ### Design Benefits
-//!
-//! 1. **Framework Isolation**: Core parameter types remain free of
-//!    clap-specific attributes and derives, enabling reuse across different
-//!    interfaces.
-//!
-//! 2. **Validation Separation**: CLI-specific validation (argument parsing,
-//!    help generation) is handled by clap derives, while business logic
-//!    validation remains in the core domain.
-//!
-//! 3. **Interface Evolution**: CLI can evolve its argument structure (aliases,
-//!    help text, validation) without affecting core parameter definitions.
-//!
-//! ### Implementation Pattern
-//!
-//! Each command follows this structure:
-//!
-//! ```rust
-//! // CLI-specific argument structure with clap derives
-//! #[derive(Args)]
-//! pub struct OperationArgs {
-//!     pub field: String,
-//!     #[arg(short, long)] // CLI-specific attributes
-//!     pub optional_field: Option<String>,
-//! }
-//!
-//! // Conversion method to core parameters
-//! impl OperationArgs {
-//!     pub fn into_params(self) -> CoreOperationParams {
-//!         CoreOperationParams {
-//!             field: self.field,
-//!             optional_field: self.optional_field,
-//!         }
-//!     }
-//! }
-//! ```
-//!
-//! This pattern ensures that:
-//! - CLI concerns (help text, argument validation) stay in CLI layer
-//! - Core types remain interface-agnostic
-//! - Type conversion is explicit and verifiable at compile time
+use std::str::FromStr;
 
-use std::path::PathBuf;
+use anyhow::{Context, Result};
+use beacon_core::{
+    params::*, CreateResult, Id, OperationStatus, Planner, StepStatus, UpdateResult,
+};
+use clap::{Parser, Subcommand, ValueEnum};
 
-use beacon_core::params::*;
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use crate::renderer::TerminalRenderer;
 
-/// Main command-line interface for Beacon task management tool
-///
-/// Beacon is a hierarchical task planning and management system that helps
-/// organize work into structured plans and steps. It provides a command-line
-/// interface for creating, managing, and tracking tasks with support for both
-/// local CLI operations and MCP (Model Context Protocol) server mode for
-/// integration with AI assistants.
-#[derive(Parser)]
-#[command(version, about, name = "b")]
+/// Handler implementations for the CLI
 pub struct Cli {
-    /// Path to the SQLite database file. Defaults to
-    /// $XDG_DATA_HOME/beacon/beacon.db
-    #[arg(long, global = true)]
-    pub database_file: Option<PathBuf>,
-
-    /// Disable colored output and use plain text
-    #[arg(long, global = true)]
-    pub no_color: bool,
-
-    #[command(subcommand)]
-    pub command: Option<Commands>,
+    planner: Planner,
+    renderer: TerminalRenderer,
 }
 
-/// Available commands for the Beacon CLI
-///
-/// The CLI is organized into three main command categories:
-/// - `plan`: Operations for managing task plans (create, list, archive, etc.)
-/// - `step`: Operations for managing individual steps within plans
-/// - `serve`: Start the MCP server for AI assistant integration
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Manage plans
-    #[command(alias = "p")]
-    Plan {
-        #[command(subcommand)]
-        command: PlanCommands,
-    },
-    /// Manage steps within plans
-    #[command(alias = "s")]
-    Step {
-        #[command(subcommand)]
-        command: StepCommands,
-    },
-    /// Start the MCP server
-    Serve,
+impl Cli {
+    pub fn new(planner: Planner, renderer: TerminalRenderer) -> Self {
+        Self { planner, renderer }
+    }
+
+    /// Handle plan subcommands
+    pub(crate) async fn handle_plan_command(&self, command: PlanCommands) -> Result<()> {
+        use PlanCommands::*;
+        match command {
+            Create(args) => self.create_plan(&args.into()).await,
+            List(args) => self.list_plans(&args.into()).await,
+            Show(args) => self.show_plan(&args.into()).await,
+            Archive(args) => self.archive_plan(&args.into()).await,
+            Unarchive(args) => self.unarchive_plan(&args.into()).await,
+            Delete(args) => self.delete_plan(&args.into()).await,
+            Search(args) => self.search_plans(&args.into()).await,
+        }
+    }
+
+    /// Handle step subcommands
+    pub(crate) async fn handle_step_command(&self, command: StepCommands) -> Result<()> {
+        use StepCommands::*;
+        match command {
+            Add(args) => self.add_step(&args.into()).await,
+            Insert(args) => self.insert_step(&args.into()).await,
+            Update(args) => {
+                let params: UpdateStep = args.into();
+
+                // Parse status using FromStr implementation
+                let status = params.status.as_ref().map(|s| {
+                    StepStatus::from_str(s).unwrap_or_else(|_| {
+                        eprintln!("Warning: Invalid status '{}', defaulting to 'todo'", s);
+                        StepStatus::Todo
+                    })
+                });
+
+                self.update_step(&params, status).await
+            }
+            Show(args) => self.show_step(&args.into()).await,
+            Swap(args) => self.swap_step(&args.into()).await,
+        }
+    }
+
+    /// Handle plan list command  
+    pub async fn list_plans(&self, params: &ListPlans) -> Result<()> {
+        let plan_summaries = self
+            .planner
+            .list_plans_summary(params)
+            .await
+            .context("Failed to list plans")?;
+
+        let title = if params.archived {
+            "Archived Plans"
+        } else {
+            "Active Plans"
+        };
+
+        self.renderer
+            .render(&format!("# {title}\n\n{plan_summaries}"));
+
+        Ok(())
+    }
+
+    /// Handle plan create command
+    async fn create_plan(&self, params: &CreatePlan) -> Result<()> {
+        let plan = self
+            .planner
+            .create_plan(params)
+            .await
+            .context("Failed to create plan")?;
+
+        self.renderer.render(&CreateResult::new(plan).to_string());
+
+        Ok(())
+    }
+
+    /// Handle plan show command
+    async fn show_plan(&self, params: &Id) -> Result<()> {
+        let plan = self
+            .planner
+            .get_plan(params)
+            .await
+            .context("Failed to get plan")?
+            .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
+
+        self.renderer.render(&plan.to_string());
+
+        Ok(())
+    }
+
+    /// Handle plan archive command
+    async fn archive_plan(&self, params: &Id) -> Result<()> {
+        let plan = self
+            .planner
+            .archive_plan(params)
+            .await
+            .with_context(|| format!("Failed to archive plan {}", params.id))?
+            .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
+
+        let message = format!(
+            "Archived plan '{}' (ID: {}). Use 'beacon plan unarchive {}' to restore.",
+            plan.title, params.id, params.id
+        );
+        self.renderer
+            .render(&OperationStatus::success(message).to_string());
+        Ok(())
+    }
+
+    /// Handle plan unarchive command
+    async fn unarchive_plan(&self, params: &Id) -> Result<()> {
+        let _plan = self
+            .planner
+            .unarchive_plan(params)
+            .await
+            .with_context(|| format!("Failed to unarchive plan {}", params.id))?;
+
+        let message = format!("Unarchived plan with ID: {}", params.id);
+        self.renderer
+            .render(&OperationStatus::success(message).to_string());
+        Ok(())
+    }
+
+    /// Handle plan delete command
+    async fn delete_plan(&self, args: &DeletePlan) -> Result<()> {
+        let plan = self
+            .planner
+            .delete_plan(&args)
+            .await
+            .with_context(|| format!("Failed to delete plan {}", &args.id))?
+            .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", &args.id))?;
+
+        let message = format!(
+            "Permanently deleted plan '{}' (ID: {}). This action cannot be undone.",
+            plan.title, plan.id
+        );
+        self.renderer
+            .render(&OperationStatus::success(message).to_string());
+        Ok(())
+    }
+
+    /// Handle plan search command
+    async fn search_plans(&self, params: &SearchPlans) -> Result<()> {
+        let plan_summaries = self
+            .planner
+            .search_plans_summary(params)
+            .await
+            .context("Failed to search plans")?;
+
+        let title = format!("{} plans in directory: {}", if params.archived {
+            "ARCHIVED"
+        } else {
+            "ACTIVE"
+        }, params.directory);
+
+        self.renderer.render(&format!("# {title}\n\n{plan_summaries}"));
+        Ok(())
+    }
+
+    /// Handle step add command
+    async fn add_step(&self, params: &StepCreate) -> Result<()> {
+        let step = self
+            .planner
+            .add_step(params)
+            .await
+            .with_context(|| format!("Failed to add step to plan {}", params.plan_id))?;
+        self.renderer.render(&CreateResult::new(step).to_string());
+        Ok(())
+    }
+
+    /// Handle step insert command
+    async fn insert_step(&self, params: &InsertStep) -> Result<()> {
+        let step = self
+            .planner
+            .insert_step(params)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to insert step into plan {} at position {}",
+                    params.step.plan_id, params.position
+                )
+            })?;
+
+        self.renderer.render(&CreateResult::new(step).to_string());
+        Ok(())
+    }
+
+    /// Handle step update command
+    async fn update_step(&self, params: &UpdateStep, status: Option<StepStatus>) -> Result<()> {
+        // Check if we have anything to update
+        if status.is_none()
+            && params.title.is_none()
+            && params.description.is_none()
+            && params.acceptance_criteria.is_none()
+            && params.references.is_none()
+            && params.result.is_none()
+        {
+            return Err(anyhow::anyhow!(
+                "No updates specified. Use --status, --title, --description, --acceptance-criteria, --references, or --result"
+            ));
+        }
+
+        // Validate result requirement for done status
+        if let Some(StepStatus::Done) = status {
+            if params.result.is_none() {
+                return Err(anyhow::anyhow!(
+                    "Result description is required when marking a step as done. Use --result to describe what was accomplished."
+                ));
+            }
+        }
+
+        // Build list of changes made for display
+        let mut changes = Vec::new();
+        if status.is_some() {
+            changes.push("status".to_string());
+        }
+        if params.title.is_some() {
+            changes.push("title".to_string());
+        }
+        if params.description.is_some() {
+            changes.push("description".to_string());
+        }
+        if params.acceptance_criteria.is_some() {
+            changes.push("acceptance criteria".to_string());
+        }
+        if params.references.is_some() {
+            changes.push("references".to_string());
+        }
+
+        let updated_step = self
+            .planner
+            .update_step_validated(params)
+            .await
+            .with_context(|| format!("Failed to update step {}", params.id))?
+            .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
+
+        let result = UpdateResult::with_changes(updated_step, changes);
+        self.renderer.render(&result.to_string());
+
+        Ok(())
+    }
+
+    /// Handle step show command
+    async fn show_step(&self, params: &Id) -> Result<()> {
+        let step = self
+            .planner
+            .get_step(params)
+            .await
+            .context("Failed to get step")?
+            .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
+
+        self.renderer.render(&step.to_string());
+
+        Ok(())
+    }
+
+    /// Handle step swap command
+    async fn swap_step(&self, params: &SwapSteps) -> Result<()> {
+        self.planner
+            .swap_steps(params)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to swap steps {} and {}",
+                    params.step1_id, params.step2_id
+                )
+            })?;
+
+        let message = format!(
+            "Swapped order of steps {} and {}",
+            params.step1_id, params.step2_id
+        );
+        let status = OperationStatus::success(message);
+        self.renderer.render(&status.to_string());
+
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -123,7 +309,7 @@ pub enum Commands {
 ///
 /// CLI wrapper for CreatePlan that adds clap-specific argument handling
 /// including short/long flags, help text generation, and input validation.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct CreatePlanArgs {
     /// Title of the plan
     pub title: String,
@@ -159,7 +345,7 @@ impl From<CreatePlanArgs> for CreatePlan {
 /// --archived flag. Active plans are those currently being worked on, while
 /// archived plans are completed or temporarily inactive plans that have been
 /// moved out of the main view.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct ListPlansArgs {
     /// Show archived plans instead of active plans
     #[arg(
@@ -182,7 +368,7 @@ impl From<ListPlansArgs> for ListPlans {
 /// Display comprehensive information about a plan including its title,
 /// description, directory, creation/modification timestamps, and all associated
 /// steps with their current status and details.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct ShowPlanArgs {
     /// ID of the plan to display
     #[arg(help = "Unique identifier of the plan to show details for")]
@@ -201,7 +387,7 @@ impl From<ShowPlanArgs> for Id {
 /// Archived plans are preserved and can be restored later with the unarchive
 /// command. Use this for completed projects or plans that are temporarily on
 /// hold.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct ArchivePlanArgs {
     /// ID of the plan to archive
     #[arg(help = "Unique identifier of the plan to move to archived state")]
@@ -220,7 +406,7 @@ impl From<ArchivePlanArgs> for Id {
 /// default plan listing. The plan and all its steps are preserved exactly as
 /// they were when archived. Use this to resume work on previously archived
 /// projects.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct UnarchivePlanArgs {
     /// ID of the plan to restore from archive
     #[arg(help = "Unique identifier of the archived plan to restore to active state")]
@@ -234,7 +420,7 @@ impl From<UnarchivePlanArgs> for Id {
 }
 
 /// Delete a plan permanently
-#[derive(Args)]
+#[derive(Parser)]
 pub struct DeletePlanArgs {
     /// ID of the plan to delete
     #[arg(help = "Unique identifier of the plan to permanently delete")]
@@ -258,7 +444,7 @@ impl From<DeletePlanArgs> for DeletePlan {
 /// Find all plans associated with a specific directory path. Use --archived to
 /// include archived plans in the search results. This is useful for discovering
 /// existing plans in a project folder or organizing plans by location.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct SearchPlansArgs {
     /// Directory path to search for plans
     #[arg(help = "Directory path to search for plans in")]
@@ -310,7 +496,7 @@ pub enum PlanCommands {
 /// Example of wrapper pattern with more complex parameter mapping, showing
 /// how CLI-specific features (value_delimiter) can be added without affecting
 /// the core parameter structure.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct AddStepArgs {
     /// ID of the plan to add the step to
     #[arg(help = "Unique identifier of the plan to add this step to")]
@@ -363,7 +549,7 @@ impl From<AddStepArgs> for StepCreate {
 /// This allows inserting a step at any position within the existing step order.
 /// Position is 0-indexed (0 = first position). All existing steps at or after
 /// this position will be shifted down to make room for the new step.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct InsertStepArgs {
     #[arg(help = "Unique identifier of the plan to insert this step into")]
     pub plan_id: u64,
@@ -414,7 +600,7 @@ impl From<InsertStepArgs> for InsertStep {
 /// 'done', the result field should be provided to document what was
 /// accomplished. The result field is required for completion tracking and is
 /// ignored for other status changes.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct UpdateStepArgs {
     #[arg(help = "Unique identifier of the step to update")]
     pub id: u64,
@@ -468,7 +654,7 @@ impl From<UpdateStepArgs> for UpdateStep {
 /// timestamps, description, acceptance criteria, references, and result (if
 /// completed). Use when you need to focus on a single step's details rather
 /// than the whole plan.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct ShowStepArgs {
     #[arg(help = "Unique identifier of the step to show details for")]
     pub id: u64,
@@ -486,7 +672,7 @@ impl From<ShowStepArgs> for Id {
 /// must belong to the same plan. This operation preserves all step properties
 /// and only changes their order in the plan's step sequence. Useful for
 /// reorganizing workflow without deleting and recreating steps.
-#[derive(Args)]
+#[derive(Parser)]
 pub struct SwapStepsArgs {
     #[arg(help = "Unique identifier of the first step to swap")]
     pub step1_id: u64,
