@@ -1,6 +1,6 @@
 //! Database schema initialization and migrations.
 
-use crate::error::{PlannerError, Result, ResultExt};
+use crate::error::{PlannerError, Result, DatabaseResultExt};
 
 impl super::Database {
     /// Initializes the database schema using the embedded SQL file.
@@ -8,13 +8,13 @@ impl super::Database {
         // Enable foreign keys for this connection
         self.connection
             .execute("PRAGMA foreign_keys = ON", [])
-            .db_err("Failed to enable foreign keys")?;
+            .db_context("Failed to enable foreign keys")?;
 
         // Execute the schema SQL
         let schema_sql = include_str!("../../assets/schema.sql");
         self.connection
             .execute_batch(schema_sql)
-            .db_err("Failed to initialize database schema")?;
+            .db_context("Failed to initialize database schema")?;
 
         // Apply migrations for existing databases
         self.apply_migrations()?;
