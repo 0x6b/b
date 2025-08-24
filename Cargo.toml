@@ -60,6 +60,7 @@ unused_imports = "warn"
 unused_variables = "warn"
 dead_code = "warn"
 unused_must_use = "warn"
+unused_qualifications = "warn"
 
 [workspace.lints.clippy]
 # Complexity lints
