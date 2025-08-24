@@ -60,11 +60,11 @@ pub mod planner;
 // Re-export commonly used types
 pub use db::Database;
 pub use display::{
-    CreateResult, DeleteResult, OperationStatus, PlanSummaries, Steps, UpdateResult,
+    CreateResult, DeleteResult, LocalDateTime, OperationStatus, PlanSummaries, Steps, UpdateResult,
 };
 pub use error::{PlannerError, Result};
 pub use models::{
-    CompletionFilter, LocalDateTime, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
+    CompletionFilter, Plan, PlanFilter, PlanStatus, PlanSummary, Step, StepStatus,
     UpdateStepRequest,
 };
 pub use params::{

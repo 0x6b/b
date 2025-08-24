@@ -1,43 +1,6 @@
 # Beacon
 
-A command-line task planning tool with a clean Display-based architecture for consistent formatting across CLI and MCP interfaces.
-
-## Architecture
-
-Beacon follows a layered architecture that clearly separates business logic from interface concerns:
-
-```text
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Interfaces    │    │   Core Logic    │    │   Data Layer    │
-│  (CLI + MCP)    │───▶│   (Handlers)    │───▶│   (Database)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-     Thin Wrappers        Business Logic           SQLite Storage
-```
-
-### Core Separation of Concerns
-
-- **beacon-core**: Contains all business logic, data models, and operations
-  - **Handlers**: High-level business workflows that coordinate operations
-  - **Models**: Domain objects with Display implementations for formatting
-  - **Operations**: Reusable business logic components
-  - **Planner**: Database abstraction and low-level data operations
-  - **Display**: Formatting functions and result wrappers for consistent output
-
-- **beacon-cli**: Thin wrapper providing command-line interface
-  - Argument parsing with clap
-  - Terminal rendering with rich markdown output
-  - Direct calls to core handlers
-
-- **MCP Server**: Thin wrapper providing AI model integration
-  - JSON-RPC protocol handling
-  - Parameter validation and conversion
-  - Direct calls to core handlers
-
-This architecture ensures:
-- **Consistency**: Both interfaces use identical business logic
-- **Testability**: Core logic can be tested independently
-- **Maintainability**: Single source of truth for all operations
-- **Flexibility**: Easy to add new interfaces without duplicating logic
+A command-line task planning tool that helps you organize and track work through structured plans and actionable steps.
 
 ## Installation
 
