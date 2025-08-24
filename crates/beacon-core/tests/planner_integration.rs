@@ -1,15 +1,15 @@
 //! Integration tests for the planner module.
 
-mod common;
-
 use beacon_core::params::{
     CreatePlan, DeletePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps,
     UpdateStep,
 };
+use beacon_core::PlannerBuilder;
+use tempfile::TempDir;
 
 #[tokio::test]
 async fn test_list_plans_summary_active() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan
     let plan = planner
@@ -51,7 +51,7 @@ async fn test_list_plans_summary_active() {
 
 #[tokio::test]
 async fn test_list_plans_summary_archived() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create and archive a plan
     let plan = planner
@@ -89,7 +89,7 @@ async fn test_list_plans_summary_archived() {
 
 #[tokio::test]
 async fn test_show_plan_with_steps() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan with steps
     let plan = planner
@@ -138,7 +138,7 @@ async fn test_show_plan_with_steps() {
 
 #[tokio::test]
 async fn test_show_plan_with_steps_not_found() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Test non-existent plan
     let result = planner
@@ -151,7 +151,7 @@ async fn test_show_plan_with_steps_not_found() {
 
 #[tokio::test]
 async fn test_archive_plan() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan
     let plan = planner
@@ -183,7 +183,7 @@ async fn test_archive_plan() {
 
 #[tokio::test]
 async fn test_archive_plan_not_found() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Test non-existent plan
     let result = planner
@@ -196,7 +196,7 @@ async fn test_archive_plan_not_found() {
 
 #[tokio::test]
 async fn test_unarchive_plan() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create and archive a plan
     let plan = planner
@@ -235,7 +235,7 @@ async fn test_unarchive_plan() {
 
 #[tokio::test]
 async fn test_delete_plan_with_confirmation() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan with steps
     let plan = planner
@@ -287,7 +287,7 @@ async fn test_delete_plan_with_confirmation() {
 
 #[tokio::test]
 async fn test_delete_plan_confirmation_required() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan
     let plan = planner
@@ -322,7 +322,7 @@ async fn test_delete_plan_confirmation_required() {
 
 #[tokio::test]
 async fn test_search_plans_summary() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
     let test_dir = "/test/directory";
 
     // Create plans in different directories
@@ -372,7 +372,7 @@ async fn test_search_plans_summary() {
 
 #[tokio::test]
 async fn test_search_plans_summary_archived() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
     let test_dir = "/test/directory";
 
     // Create and archive a plan
@@ -417,7 +417,7 @@ async fn test_search_plans_summary_archived() {
 
 #[tokio::test]
 async fn test_update_step_validated() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan and step
     let plan = planner
@@ -468,7 +468,7 @@ async fn test_update_step_validated() {
 
 #[tokio::test]
 async fn test_update_step_validated_not_found() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Test non-existent step
     let result = planner
@@ -489,7 +489,7 @@ async fn test_update_step_validated_not_found() {
 
 #[tokio::test]
 async fn test_claim_step_atomically() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan and step
     let plan = planner
@@ -541,7 +541,7 @@ async fn test_claim_step_atomically() {
 
 #[tokio::test]
 async fn test_add_step_to_plan() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan
     let plan = planner
@@ -579,7 +579,7 @@ async fn test_add_step_to_plan() {
 
 #[tokio::test]
 async fn test_insert_step_to_plan() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan with existing steps
     let plan = planner
@@ -644,7 +644,7 @@ async fn test_insert_step_to_plan() {
 
 #[tokio::test]
 async fn test_show_step_details() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan and step
     let plan = planner
@@ -688,7 +688,7 @@ async fn test_show_step_details() {
 
 #[tokio::test]
 async fn test_swap_step_positions() {
-    let (_temp_dir, planner) = common::create_test_planner().await;
+    let (_temp_dir, planner) = create_test_planner().await;
 
     // Create a plan with multiple steps
     let plan = planner
@@ -752,4 +752,16 @@ async fn test_swap_step_positions() {
     assert_eq!(steps[0].title, "Third Step"); // step3 is now first
     assert_eq!(steps[1].title, "Second Step"); // step2 stays in middle
     assert_eq!(steps[2].title, "First Step"); // step1 is now last
+}
+
+/// Helper function to create a test planner
+pub async fn create_test_planner() -> (TempDir, beacon_core::Planner) {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db_path = temp_dir.path().join("test.db");
+    let planner = PlannerBuilder::new()
+        .with_database_path(&db_path)
+        .build()
+        .await
+        .expect("Failed to create planner");
+    (temp_dir, planner)
 }

@@ -24,7 +24,7 @@ async fn create_test_planner() -> (Planner, TempDir) {
 
 /// Run a CLI command and capture its output
 fn run_cli_command(db_path: &str, args: &[&str]) -> String {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_beacon"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_b"));
     cmd.arg("--no-color").arg("--database-file").arg(db_path);
 
     for arg in args {
