@@ -424,9 +424,9 @@ impl super::Database {
     }
 
     /// Atomically claims a step for processing by transitioning it from Todo to
-    /// InProgress. Returns Ok(true) if the step was successfully claimed,
-    /// Ok(false) if the step was not in Todo status.
-    pub fn claim_step(&mut self, step_id: u64) -> Result<bool> {
+    /// InProgress. Returns the step details if successfully claimed, None if
+    /// the step doesn't exist or cannot be claimed.
+    pub fn claim_step(&mut self, step_id: u64) -> Result<Option<Step>> {
         let tx = self
             .connection
             .transaction()
@@ -443,7 +443,10 @@ impl super::Database {
             .map_err(|e| PlannerError::database_error("Failed to query step status", e))?;
 
         match current_status {
-            None => Err(PlannerError::StepNotFound { id: step_id }),
+            None => {
+                // Step doesn't exist, return None
+                Ok(None)
+            }
             Some(status) if status == "todo" => {
                 // Atomically update to in_progress
                 let now_str = Timestamp::now().to_string();
@@ -465,14 +468,20 @@ impl super::Database {
                 )
                 .map_err(|e| PlannerError::database_error("Failed to update plan timestamp", e))?;
 
+                // Get the updated step details
+                let step = tx
+                    .query_row(SELECT_STEP_BY_ID_SQL, params![step_id as i64], Self::build_step_from_row)
+                    .optional()
+                    .map_err(|e| PlannerError::database_error("Failed to query claimed step", e))?;
+
                 tx.commit()
                     .db_context("Failed to commit transaction")?;
 
-                Ok(true)
+                Ok(step)
             }
             _ => {
                 // Step is not in Todo status, cannot claim
-                Ok(false)
+                Ok(None)
             }
         }
     }

@@ -259,7 +259,8 @@ impl super::Database {
     }
 
     /// Archives a plan (soft delete).
-    pub fn archive_plan(&mut self, id: u64) -> Result<()> {
+    /// Returns the archived plan details if successful, None if the plan doesn't exist.
+    pub fn archive_plan(&mut self, id: u64) -> Result<Option<Plan>> {
         let tx = self
             .connection
             .transaction()
@@ -289,19 +290,59 @@ impl super::Database {
                 .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
 
             if !exists {
-                return Err(PlannerError::PlanNotFound { id });
+                // Plan doesn't exist, return None
+                return Ok(None);
             }
-            // Plan exists but is already archived, which is okay
+            // Plan exists but is already archived - still return its details
         }
+
+        // Get the updated plan details
+        let mut plan = tx
+            .query_row(SELECT_PLAN_SQL, params![id as i64], |row| {
+                let status_str: String = row.get(3)?;
+                let status = status_str.parse::<PlanStatus>().map_err(|_| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        3,
+                        Type::Text,
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("Invalid plan status: {status_str}"),
+                        )),
+                    )
+                })?;
+
+                Ok(Plan {
+                    id: row.get::<_, i64>(0)? as u64,
+                    title: row.get(1)?,
+                    description: row.get(2)?,
+                    status,
+                    directory: row.get(4)?,
+                    created_at: row.get::<_, String>(5)?.parse::<Timestamp>().map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(5, Type::Text, Box::new(e))
+                    })?,
+                    updated_at: row.get::<_, String>(6)?.parse::<Timestamp>().map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(6, Type::Text, Box::new(e))
+                    })?,
+                    steps: Vec::new(),
+                })
+            })
+            .optional()
+            .map_err(|e| PlannerError::database_error("Failed to query archived plan", e))?;
 
         tx.commit()
             .db_context("Failed to commit transaction")?;
 
-        Ok(())
+        // Load steps for the plan if it exists
+        if let Some(ref mut plan) = plan {
+            plan.steps = self.get_steps(plan.id)?;
+        }
+
+        Ok(plan)
     }
 
     /// Unarchives a plan (restores from archive).
-    pub fn unarchive_plan(&mut self, id: u64) -> Result<()> {
+    /// Returns the unarchived plan details if successful, None if the plan doesn't exist.
+    pub fn unarchive_plan(&mut self, id: u64) -> Result<Option<Plan>> {
         let tx = self
             .connection
             .transaction()
@@ -331,15 +372,54 @@ impl super::Database {
                 .map_err(|e| PlannerError::database_error("Failed to check plan existence", e))?;
 
             if !exists {
-                return Err(PlannerError::PlanNotFound { id });
+                // Plan doesn't exist, return None
+                return Ok(None);
             }
-            // Plan exists but is already active, which is okay
+            // Plan exists but is already active - still return its details
         }
+
+        // Get the updated plan details
+        let mut plan = tx
+            .query_row(SELECT_PLAN_SQL, params![id as i64], |row| {
+                let status_str: String = row.get(3)?;
+                let status = status_str.parse::<PlanStatus>().map_err(|_| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        3,
+                        Type::Text,
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("Invalid plan status: {status_str}"),
+                        )),
+                    )
+                })?;
+
+                Ok(Plan {
+                    id: row.get::<_, i64>(0)? as u64,
+                    title: row.get(1)?,
+                    description: row.get(2)?,
+                    status,
+                    directory: row.get(4)?,
+                    created_at: row.get::<_, String>(5)?.parse::<Timestamp>().map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(5, Type::Text, Box::new(e))
+                    })?,
+                    updated_at: row.get::<_, String>(6)?.parse::<Timestamp>().map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(6, Type::Text, Box::new(e))
+                    })?,
+                    steps: Vec::new(),
+                })
+            })
+            .optional()
+            .map_err(|e| PlannerError::database_error("Failed to query unarchived plan", e))?;
 
         tx.commit()
             .db_context("Failed to commit transaction")?;
 
-        Ok(())
+        // Load steps for the plan if it exists
+        if let Some(ref mut plan) = plan {
+            plan.steps = self.get_steps(plan.id)?;
+        }
+
+        Ok(plan)
     }
 
     /// Permanently deletes a plan and all its associated steps from the
