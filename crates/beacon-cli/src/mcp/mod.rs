@@ -29,7 +29,7 @@ pub mod prompts;
 
 // Re-export parameter types and result type from handlers for external use
 pub use handlers::{
-    CreatePlan, Id, InsertStep, ListPlans, McpResult, SearchPlans, StepCreate, SwapSteps,
+    CreatePlan, DeletePlan, Id, InsertStep, ListPlans, McpResult, SearchPlans, StepCreate, SwapSteps,
     UpdateStep,
 };
 
@@ -100,7 +100,7 @@ impl BeaconMcpServer {
         name = "delete_plan",
         description = "Permanently delete a plan and all its associated steps from the database. This operation cannot be undone. Use with caution - consider archiving instead if you might need the plan later."
     )]
-    async fn delete_plan(&self, params: Parameters<Id>) -> McpResult {
+    async fn delete_plan(&self, params: Parameters<DeletePlan>) -> McpResult {
         let handlers = handlers::McpHandlers::new(self.planner.clone());
         handlers.delete_plan(params).await
     }

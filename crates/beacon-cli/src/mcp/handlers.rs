@@ -73,6 +73,7 @@ where
 // Type aliases for cleaner usage in function signatures
 pub type Id = McpParams<core::Id>;
 pub type CreatePlan = McpParams<core::CreatePlan>;
+pub type DeletePlan = McpParams<core::DeletePlan>;
 pub type ListPlans = McpParams<core::ListPlans>;
 pub type SearchPlans = McpParams<core::SearchPlans>;
 pub type StepCreate = McpParams<core::StepCreate>;
@@ -177,7 +178,7 @@ impl McpHandlers {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
         let _archived_plan = planner
-            .archive_plan_with_confirmation(inner_params)
+            .archive_plan(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to archive plan: {e}"), None))?
             .ok_or_else(|| {
@@ -206,7 +207,7 @@ impl McpHandlers {
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
         let _unarchived_plan = planner
-            .unarchive_plan_with_confirmation(inner_params)
+            .unarchive_plan(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None))?
             .ok_or_else(|| {
@@ -229,13 +230,13 @@ impl McpHandlers {
         name = "delete_plan",
         description = "Permanently delete a plan and all its associated steps from the database. This operation cannot be undone. Use with caution - consider archiving instead if you might need the plan later."
     )]
-    pub async fn delete_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
+    pub async fn delete_plan(&self, Parameters(params): Parameters<DeletePlan>) -> McpResult {
         debug!("delete_plan: {:?}", params);
         let planner = self.planner.lock().await;
         let inner_params = params.as_ref();
 
         let deleted_plan = planner
-            .delete_plan_with_confirmation(inner_params)
+            .delete_plan(inner_params)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to delete plan: {e}"), None))?
             .ok_or_else(|| {
@@ -453,15 +454,15 @@ impl McpHandlers {
         let inner_params = params.as_ref();
 
         match planner.claim_step_atomically(inner_params).await {
-            Ok(true) => {
+            Ok(Some(_step)) => {
                 let message = format!(
                     "Successfully claimed step {} - it is now marked as 'in progress'\n\n<system-reminder>\nLaunch a focused subagent for this step. Once completed, use `update_step` with the detailed results of what was accomplished.\n</system-reminder>",
                     inner_params.id
                 );
                 Ok(CallToolResult::success(vec![Content::text(message)]))
             }
-            Ok(false) => {
-                // Step was not in todo status, get current status
+            Ok(None) => {
+                // Step was not found or not in todo status, get current status
                 let step = planner.show_step_details(inner_params).await.map_err(|e| {
                     ErrorData::internal_error(format!("Failed to get step: {e}"), None)
                 })?;
