@@ -11,6 +11,7 @@ use std::str::FromStr;
 
 use anyhow::{Context, Result};
 use beacon_core::{
+    params::DeletePlan,
     CreatePlan, CreateResult, Id, InsertStep, ListPlans, OperationStatus, Planner, PlannerBuilder,
     SearchPlans, StepCreate, StepStatus, SwapSteps, UpdateResult, UpdateStep,
 };
@@ -162,7 +163,7 @@ async fn handle_plan_archive(
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let plan = planner
-        .archive_plan_with_confirmation(params)
+        .archive_plan(params)
         .await
         .with_context(|| format!("Failed to archive plan {}", params.id))?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
@@ -195,7 +196,7 @@ async fn handle_plan_unarchive(
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let _plan = planner
-        .unarchive_plan_with_confirmation(params)
+        .unarchive_plan(params)
         .await
         .with_context(|| format!("Failed to unarchive plan {}", params.id))?;
 
@@ -211,29 +212,19 @@ async fn handle_plan_delete(
     args: cli::DeletePlanArgs,
     renderer: &TerminalRenderer,
 ) -> Result<()> {
-    // Check if --confirm flag was provided
-    if !args.confirm {
-        let message = format!(
-            "Plan deletion requires confirmation. Use 'beacon plan delete {} --confirm' to permanently delete the plan.",
-            args.id
-        );
-        let status = OperationStatus::failure(message);
-        renderer.render(&status.to_string());
-        return Ok(());
-    }
-
-    let params: Id = args.into();
+    let delete_params: DeletePlan = args.into();
+    let id_params = Id { id: delete_params.id };
 
     let steps = planner
-        .get_steps(&params)
+        .get_steps(&id_params)
         .await
-        .with_context(|| format!("Failed to get steps for plan {}", params.id))?;
+        .with_context(|| format!("Failed to get steps for plan {}", delete_params.id))?;
 
     let plan = planner
-        .delete_plan_with_confirmation(&params)
+        .delete_plan(&delete_params)
         .await
-        .with_context(|| format!("Failed to delete plan {}", params.id))?
-        .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
+        .with_context(|| format!("Failed to delete plan {}", delete_params.id))?
+        .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", delete_params.id))?;
 
     let step_info = if steps.0.is_empty() {
         String::new()

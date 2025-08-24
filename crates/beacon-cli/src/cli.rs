@@ -242,9 +242,12 @@ pub struct DeletePlanArgs {
     pub confirm: bool,
 }
 
-impl From<DeletePlanArgs> for Id {
+impl From<DeletePlanArgs> for DeletePlan {
     fn from(val: DeletePlanArgs) -> Self {
-        Id { id: val.id }
+        DeletePlan {
+            id: val.id,
+            confirmed: val.confirm,
+        }
     }
 }
 
