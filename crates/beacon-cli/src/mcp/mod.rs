@@ -89,24 +89,6 @@ impl BeaconMcpServer {
     }
 
     #[tool(
-        name = "unarchive_plan",
-        description = "Restore an archived plan back to the active list. Use when resuming work on a previously archived project or when you need to reference completed work. The plan and all its steps are preserved exactly as they were."
-    )]
-    async fn unarchive_plan(&self, params: Parameters<Id>) -> McpResult {
-        let handlers = handlers::McpHandlers::new(self.planner.clone());
-        handlers.unarchive_plan(params).await
-    }
-
-    #[tool(
-        name = "delete_plan",
-        description = "Permanently delete a plan and all its associated steps from the database. This operation cannot be undone. Use with caution - consider archiving instead if you might need the plan later."
-    )]
-    async fn delete_plan(&self, params: Parameters<DeletePlan>) -> McpResult {
-        let handlers = handlers::McpHandlers::new(self.planner.clone());
-        handlers.delete_plan(params).await
-    }
-
-    #[tool(
         name = "search_plans",
         description = "Find all plans associated with a specific directory path. Use archived=false (default) for active plans you're working on, or archived=true to see completed/hidden plans for the directory. Useful for discovering existing plans in a project folder or organizing plans by location."
     )]

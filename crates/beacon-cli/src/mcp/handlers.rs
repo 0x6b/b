@@ -200,65 +200,7 @@ impl McpHandlers {
             result.to_string(),
         )]))
     }
-
-    #[tool(
-        name = "unarchive_plan",
-        description = "Restore an archived plan back to the active list. Use when resuming work on a previously archived project or when you need to reference completed work. The plan and all its steps are preserved exactly as they were."
-    )]
-    pub async fn unarchive_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
-        debug!("unarchive_plan: {:?}", params);
-
-        let planner = self.planner.lock().await;
-        let inner_params = params.as_ref();
-        let _unarchived_plan = planner
-            .unarchive_plan(inner_params)
-            .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to unarchive plan: {e}"), None))?
-            .ok_or_else(|| {
-                ErrorData::internal_error(
-                    format!("Plan with ID {} not found", inner_params.id),
-                    None,
-                )
-            })?;
-
-        let result = OperationStatus::success(format!(
-            "Unarchived plan with ID {}. Plan is now active again.",
-            inner_params.id
-        ));
-        Ok(CallToolResult::success(vec![Content::text(
-            result.to_string(),
-        )]))
-    }
-
-    #[tool(
-        name = "delete_plan",
-        description = "Permanently delete a plan and all its associated steps from the database. This operation cannot be undone. Use with caution - consider archiving instead if you might need the plan later."
-    )]
-    pub async fn delete_plan(&self, Parameters(params): Parameters<DeletePlan>) -> McpResult {
-        debug!("delete_plan: {:?}", params);
-        let planner = self.planner.lock().await;
-        let inner_params = params.as_ref();
-
-        let deleted_plan = planner
-            .delete_plan(inner_params)
-            .await
-            .map_err(|e| ErrorData::internal_error(format!("Failed to delete plan: {e}"), None))?
-            .ok_or_else(|| {
-                ErrorData::internal_error(
-                    format!("Plan with ID {} not found", inner_params.id),
-                    None,
-                )
-            })?;
-
-        let result = OperationStatus::success(format!(
-            "Permanently deleted plan '{}' (ID: {}). This action cannot be undone.",
-            deleted_plan.title, inner_params.id
-        ));
-        Ok(CallToolResult::success(vec![Content::text(
-            result.to_string(),
-        )]))
-    }
-
+    
     #[tool(
         name = "search_plans",
         description = "Find all plans associated with a specific directory path. Use archived=false (default) for active plans you're working on, or archived=true to see completed/hidden plans for the directory. Useful for discovering existing plans in a project folder or organizing plans by location."
