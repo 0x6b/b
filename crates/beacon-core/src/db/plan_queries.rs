@@ -4,9 +4,23 @@ use jiff::Timestamp;
 use rusqlite::{params, types::Type, OptionalExtension};
 
 use crate::{
-    error::{PlannerError, Result},
+    error::{DatabaseResultExt, PlannerError, Result},
     models::{CompletionFilter, Plan, PlanFilter, PlanStatus},
 };
+
+// Optimized SQL queries as const strings for compile-time optimization
+const INSERT_PLAN_SQL: &str = "INSERT INTO plans (title, description, directory, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)";
+const SELECT_PLAN_SQL: &str = "SELECT id, title, description, status, directory, created_at, updated_at FROM plans WHERE id = ?1";
+const CHECK_PLAN_EXISTS_SQL: &str = "SELECT EXISTS(SELECT 1 FROM plans WHERE id = ?1)";
+const UPDATE_PLAN_ARCHIVE_SQL: &str = "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
+const UPDATE_PLAN_UNARCHIVE_SQL: &str = "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4";
+const DELETE_PLAN_STEPS_SQL: &str = "DELETE FROM steps WHERE plan_id = ?1";
+const DELETE_PLAN_SQL: &str = "DELETE FROM plans WHERE id = ?1";
+
+// Base queries for plan listing
+const PLAN_SUMMARY_COLUMNS: &str = "id, title, description, status, directory, created_at, updated_at, total_steps, completed_steps, pending_steps";
+const PLAN_SUMMARIES_VIEW: &str = "plan_summaries";
+const ALL_PLAN_SUMMARIES_VIEW: &str = "all_plan_summaries";
 
 impl super::Database {
     /// Creates a new plan with the given title, optional description, and
@@ -23,7 +37,7 @@ impl super::Database {
         let tx = self
             .connection
             .transaction()
-            .map_err(|e| PlannerError::database_error("Failed to begin transaction", e))?;
+            .db_context("Failed to begin transaction")?;
 
         let now = Timestamp::now();
         let now_str = now.to_string();
@@ -32,7 +46,7 @@ impl super::Database {
         let directory = Self::ensure_absolute_directory(directory)?;
 
         tx.execute(
-            "INSERT INTO plans (title, description, directory, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            INSERT_PLAN_SQL,
             params![title, description, directory.as_deref(), &now_str, &now_str],
         )
         .map_err(|e| PlannerError::database_error("Failed to insert plan", e))?;
@@ -40,11 +54,11 @@ impl super::Database {
         let id = tx.last_insert_rowid() as u64;
 
         tx.commit()
-            .map_err(|e| PlannerError::database_error("Failed to commit transaction", e))?;
+            .db_context("Failed to commit transaction")?;
 
         Ok(Plan {
             id,
-            title: title.to_string(),
+            title: title.into(),
             description: description.map(String::from),
             status: PlanStatus::Active,
             directory,
@@ -58,9 +72,7 @@ impl super::Database {
     pub fn get_plan(&self, id: u64) -> Result<Option<Plan>> {
         let mut stmt = self
             .connection
-            .prepare(
-                "SELECT id, title, description, status, directory, created_at, updated_at FROM plans WHERE id = ?1",
-            )
+            .prepare(SELECT_PLAN_SQL)
             .map_err(|e| PlannerError::database_error("Failed to prepare query", e))?;
 
         let mut plan = stmt
@@ -105,18 +117,14 @@ impl super::Database {
 
     /// Lists all plans with optional filtering.
     pub fn list_plans(&self, filter: Option<&PlanFilter>) -> Result<Vec<Plan>> {
-        // Choose the appropriate view based on whether we want to include archived
-        // plans
+        // Choose the appropriate view based on whether we want to include archived plans
         let view_name = if filter.as_ref().is_some_and(|f| f.include_archived) {
-            "all_plan_summaries"
+            ALL_PLAN_SUMMARIES_VIEW
         } else {
-            "plan_summaries" // Only shows active plans
+            PLAN_SUMMARIES_VIEW
         };
 
-        let mut query = format!(
-            "SELECT id, title, description, status, directory, created_at, updated_at, total_steps, completed_steps, pending_steps
-             FROM {view_name}"
-        );
+        let mut query = format!("SELECT {PLAN_SUMMARY_COLUMNS} FROM {view_name}");
 
         let mut conditions = Vec::new();
         let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -245,11 +253,7 @@ impl super::Database {
                     CompletionFilter::Empty => total_steps == 0,
                 };
 
-                if should_include {
-                    Some(plan)
-                } else {
-                    None
-                }
+                should_include.then_some(plan)
             })
             .collect()
     }
@@ -259,12 +263,12 @@ impl super::Database {
         let tx = self
             .connection
             .transaction()
-            .map_err(|e| PlannerError::database_error("Failed to begin transaction", e))?;
+            .db_context("Failed to begin transaction")?;
 
         let now = Timestamp::now().to_string();
         let rows_affected = tx
             .execute(
-                "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4",
+                UPDATE_PLAN_ARCHIVE_SQL,
                 params![
                     PlanStatus::Archived.as_str(),
                     &now,
@@ -278,7 +282,7 @@ impl super::Database {
             // Check if plan exists
             let exists: bool = tx
                 .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM plans WHERE id = ?1)",
+                    CHECK_PLAN_EXISTS_SQL,
                     params![id as i64],
                     |row| row.get(0),
                 )
@@ -291,7 +295,7 @@ impl super::Database {
         }
 
         tx.commit()
-            .map_err(|e| PlannerError::database_error("Failed to commit transaction", e))?;
+            .db_context("Failed to commit transaction")?;
 
         Ok(())
     }
@@ -301,12 +305,12 @@ impl super::Database {
         let tx = self
             .connection
             .transaction()
-            .map_err(|e| PlannerError::database_error("Failed to begin transaction", e))?;
+            .db_context("Failed to begin transaction")?;
 
         let now = Timestamp::now().to_string();
         let rows_affected = tx
             .execute(
-                "UPDATE plans SET status = ?1, updated_at = ?2 WHERE id = ?3 AND status = ?4",
+                UPDATE_PLAN_UNARCHIVE_SQL,
                 params![
                     PlanStatus::Active.as_str(),
                     &now,
@@ -320,7 +324,7 @@ impl super::Database {
             // Check if plan exists
             let exists: bool = tx
                 .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM plans WHERE id = ?1)",
+                    CHECK_PLAN_EXISTS_SQL,
                     params![id as i64],
                     |row| row.get(0),
                 )
@@ -333,7 +337,7 @@ impl super::Database {
         }
 
         tx.commit()
-            .map_err(|e| PlannerError::database_error("Failed to commit transaction", e))?;
+            .db_context("Failed to commit transaction")?;
 
         Ok(())
     }
@@ -344,12 +348,12 @@ impl super::Database {
         let tx = self
             .connection
             .transaction()
-            .map_err(|e| PlannerError::database_error("Failed to begin transaction", e))?;
+            .db_context("Failed to begin transaction")?;
 
         // Check if plan exists
         let exists: bool = tx
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM plans WHERE id = ?1)",
+                CHECK_PLAN_EXISTS_SQL,
                 params![id as i64],
                 |row| row.get(0),
             )
@@ -362,15 +366,15 @@ impl super::Database {
         // Delete all steps associated with this plan first
         // (Foreign key constraints should handle this automatically, but we'll be
         // explicit)
-        tx.execute("DELETE FROM steps WHERE plan_id = ?1", params![id as i64])
+        tx.execute(DELETE_PLAN_STEPS_SQL, params![id as i64])
             .map_err(|e| PlannerError::database_error("Failed to delete plan steps", e))?;
 
         // Delete the plan itself
-        tx.execute("DELETE FROM plans WHERE id = ?1", params![id as i64])
+        tx.execute(DELETE_PLAN_SQL, params![id as i64])
             .map_err(|e| PlannerError::database_error("Failed to delete plan", e))?;
 
         tx.commit()
-            .map_err(|e| PlannerError::database_error("Failed to commit transaction", e))?;
+            .db_context("Failed to commit transaction")?;
 
         Ok(())
     }
