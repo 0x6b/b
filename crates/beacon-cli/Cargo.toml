@@ -11,7 +11,7 @@ description = "A simple task planning tool"
 workspace = true
 
 [[bin]]
-name = "beacon"
+name = "b"
 path = "src/main.rs"
 
 [dependencies]

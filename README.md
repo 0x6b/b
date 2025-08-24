@@ -5,8 +5,8 @@ A command-line task planning tool that helps you organize and track work through
 ## Installation
 
 ```bash
-$ git clone https://github.com/0x6b/beacon-rs
-$ cd beacon-rs
+$ git clone https://github.com/0x6b/b
+$ cd b
 $ cargo install --path crates/beacon-cli
 ```
 
@@ -25,10 +25,12 @@ $ claude
 Occasionally, you may want to see the status of the current plan while Claude is working on it:
 
 ```console
-$ beacon plan show <ID>
+$ b plan show <ID>
+# or use short aliases:
+$ b p s <ID>
 ```
 
-See `beacon help` for more commands.
+See `b help` for more commands and available aliases.
 
 ## Configuration
 
@@ -45,7 +47,7 @@ Beacon includes a Model Context Protocol (MCP) server that provides AI assistant
   "mcpServers": {
     "beacon": {
       "type": "stdio",
-      "command": "/path/to/.cargo/bin/beacon",
+      "command": "/path/to/.cargo/bin/b",
       "args": [
         "serve"
       ],

@@ -67,7 +67,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 /// local CLI operations and MCP (Model Context Protocol) server mode for
 /// integration with AI assistants.
 #[derive(Parser)]
-#[command(version, about, name = "beacon")]
+#[command(version, about, name = "b")]
 pub struct Cli {
     /// Path to the SQLite database file. Defaults to
     /// $XDG_DATA_HOME/beacon/beacon.db
@@ -91,11 +91,13 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Manage plans
+    #[command(alias = "p")]
     Plan {
         #[command(subcommand)]
         command: PlanCommands,
     },
     /// Manage steps within plans
+    #[command(alias = "s")]
     Step {
         #[command(subcommand)]
         command: StepCommands,
@@ -281,18 +283,25 @@ impl From<SearchPlansArgs> for SearchPlans {
 #[derive(Subcommand)]
 pub enum PlanCommands {
     /// Create a new plan
+    #[command(alias = "c")]
     Create(CreatePlanArgs),
     /// List all plans
+    #[command(aliases = ["l", "ls"])]
     List(ListPlansArgs),
     /// Show details of a specific plan
+    #[command(alias = "s")]
     Show(ShowPlanArgs),
     /// Archive a plan
+    #[command(alias = "a")]
     Archive(ArchivePlanArgs),
     /// Unarchive a plan
+    #[command(alias = "u")]
     Unarchive(UnarchivePlanArgs),
     /// Delete a plan permanently
+    #[command(aliases = ["d", "rm"])]
     Delete(DeletePlanArgs),
     /// Search for plans by directory
+    #[command(alias = "f")]
     Search(SearchPlansArgs),
 }
 
@@ -497,14 +506,19 @@ impl From<SwapStepsArgs> for SwapSteps {
 #[derive(Subcommand)]
 pub enum StepCommands {
     /// Add a new step to a plan
+    #[command(alias = "a")]
     Add(AddStepArgs),
     /// Insert a new step at a specific position in a plan
+    #[command(alias = "i")]
     Insert(InsertStepArgs),
     /// Update a step's status or details
+    #[command(alias = "u")]
     Update(UpdateStepArgs),
     /// Show details of a specific step
+    #[command(alias = "s")]
     Show(ShowStepArgs),
     /// Swap the order of two steps within the same plan
+    #[command(alias = "sw")]
     Swap(SwapStepsArgs),
 }
 
