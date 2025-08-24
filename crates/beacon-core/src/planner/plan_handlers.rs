@@ -130,10 +130,9 @@ impl Planner {
     /// # };
     /// ```
     pub async fn archive_plan_with_confirmation(&self, params: &Id) -> Result<Option<Plan>> {
-        // Get plan details before archiving for confirmation
         let plan = self.get_plan(params).await?;
 
-        if plan.is_some() {
+        if let Some(ref _plan) = plan {
             self.archive_plan(params).await?;
         }
 
@@ -167,10 +166,9 @@ impl Planner {
     /// # };
     /// ```
     pub async fn unarchive_plan_with_confirmation(&self, params: &Id) -> Result<Option<Plan>> {
-        // Get plan details before unarchiving for confirmation
         let plan = self.get_plan(params).await?;
 
-        if plan.is_some() {
+        if let Some(ref _plan) = plan {
             self.unarchive_plan(params).await?;
         }
 
@@ -204,10 +202,9 @@ impl Planner {
     /// # };
     /// ```
     pub async fn delete_plan_with_confirmation(&self, params: &Id) -> Result<Option<Plan>> {
-        // Get plan details before deleting for confirmation
         let plan = self.get_plan(params).await?;
 
-        if plan.is_some() {
+        if let Some(ref _plan) = plan {
             self.delete_plan(params).await?;
         }
 

@@ -10,13 +10,13 @@ impl super::Database {
     pub fn canonicalize_directory_for_search(&self, directory: &str) -> Result<String> {
         let path = Path::new(directory);
         if path.is_absolute() {
-            Ok(directory.to_string())
+            Ok(directory.into())
         } else {
             // Convert relative path to absolute
             let cwd = current_dir().map_err(|_| PlannerError::InvalidInput {
-                field: "directory".to_string(),
+                field: "directory".into(),
                 reason: "Cannot resolve current working directory to make path absolute"
-                    .to_string(),
+                    .into(),
             })?;
             let absolute_path = cwd.join(path);
             // Normalize the path to resolve ".." and "." components without requiring the
@@ -26,8 +26,8 @@ impl super::Database {
                 .to_str()
                 .map(String::from)
                 .ok_or_else(|| PlannerError::InvalidInput {
-                    field: "directory".to_string(),
-                    reason: "Cannot convert path to string".to_string(),
+                    field: "directory".into(),
+                    reason: "Cannot convert path to string".into(),
                 })
         }
     }
@@ -60,13 +60,13 @@ impl super::Database {
             Some(dir) => {
                 let path = Path::new(dir);
                 if path.is_absolute() {
-                    Ok(Some(dir.to_string()))
+                    Ok(Some(dir.into()))
                 } else {
                     // Convert relative path to absolute
                     let cwd = current_dir().map_err(|_| PlannerError::InvalidInput {
-                        field: "directory".to_string(),
+                        field: "directory".into(),
                         reason: "Cannot resolve current working directory to make path absolute"
-                            .to_string(),
+                            .into(),
                     })?;
                     let absolute_path = cwd.join(path);
                     // Normalize the path to resolve ".." and "." components without requiring the
@@ -78,8 +78,8 @@ impl super::Database {
             None => {
                 // Use current working directory as default
                 let cwd = current_dir().map_err(|_| PlannerError::InvalidInput {
-                    field: "directory".to_string(),
-                    reason: "Cannot determine current working directory".to_string(),
+                    field: "directory".into(),
+                    reason: "Cannot determine current working directory".into(),
                 })?;
                 let normalized_cwd = Self::normalize_path(&cwd);
                 Ok(normalized_cwd.to_str().map(String::from))

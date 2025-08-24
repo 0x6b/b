@@ -113,17 +113,13 @@ impl Planner {
     /// # };
     /// ```
     pub async fn update_step_validated(&self, params: &UpdateStep) -> Result<Option<Step>> {
-        // Get step before update for confirmation
         let step = self.get_step(&Id { id: params.id }).await?;
 
         if step.is_some() {
-            // Create validated update request using TryFrom trait
             let update_request = params.clone().try_into()?;
 
-            // Perform the update
             self.update_step(params.id, update_request).await?;
 
-            // Return the updated step
             self.get_step(&Id { id: params.id }).await
         } else {
             Ok(None)

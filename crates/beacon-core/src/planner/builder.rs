@@ -62,12 +62,12 @@ impl PlannerBuilder {
     /// Returns `PlannerError::FileSystem` if the database path is invalid
     /// Returns `PlannerError::Database` if database initialization fails
     pub async fn build(self) -> Result<Planner> {
-        let db_path = match self.database_path {
-            Some(path) => path,
-            None => Self::default_database_path()?,
+        let db_path = if let Some(path) = self.database_path {
+            path
+        } else {
+            Self::default_database_path()?
         };
 
-        // Create parent directories if they don't exist
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| PlannerError::FileSystem {
                 path: parent.to_path_buf(),
@@ -75,7 +75,6 @@ impl PlannerBuilder {
             })?;
         }
 
-        // Test database connection
         let db_path_clone = db_path.clone();
         task::spawn_blocking(move || {
             let _db = Database::new(&db_path_clone)?;
