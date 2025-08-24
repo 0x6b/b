@@ -21,57 +21,24 @@
 //!
 //! ## Benefits
 //!
-//! 1. **Idiomatic Collections**: Helper functions format slices without wrapper
-//!    overhead
+//! 1. **Idiomatic Rust**: Newtype wrappers provide Display implementations for
+//!    collections
 //! 2. **Separation of Concerns**: Business logic in models, presentation in
-//!    functions
-//! 3. **Flexibility**: Functions can handle different contexts (titles, empty
-//!    collections)
+//!    wrappers
+//! 3. **Type Safety**: Newtype wrappers ensure proper formatting without runtime
+//!    errors
 //! 4. **Consistency**: All output goes through standardized display logic
 //!
 //! ## Types and Functions
 //!
-//! - [`format_plan_list`]: Formats collections of plans with optional titles
-//! - [`format_step_list`]: Formats collections of steps with optional titles
+//! - [`PlanSummaries`]: Newtype wrapper for displaying collections of plan summaries
+//! - [`Steps`]: Newtype wrapper for displaying collections of steps
 //! - [`CreateResult`]: Formats creation operation results
 //! - [`UpdateResult`]: Formats update operation results with change tracking
 //! - [`DeleteResult`]: Formats deletion confirmations
 //! - [`OperationStatus`]: Formats success/failure messages
 //!
 //! ## Usage Examples
-//!
-//! ### Basic List Formatting
-//!
-//! ```rust
-//! use beacon_core::{
-//!     display::format_plan_list,
-//!     models::{PlanStatus, PlanSummary},
-//! };
-//! use jiff::Timestamp;
-//!
-//! // Create a sample plan
-//! let plan = PlanSummary {
-//!     id: 1,
-//!     title: "My Project".to_string(),
-//!     description: Some("A test project".to_string()),
-//!     status: PlanStatus::Active,
-//!     directory: Some("/home/user/project".to_string()),
-//!     created_at: Timestamp::now(),
-//!     updated_at: Timestamp::now(),
-//!     total_steps: 5,
-//!     completed_steps: 2,
-//!     pending_steps: 3,
-//! };
-//! let plans = vec![plan];
-//!
-//! // Format a collection of plans
-//! let output = format_plan_list(&plans, None);
-//! assert!(output.contains("My Project"));
-//!
-//! // With a title header
-//! let titled_output = format_plan_list(&plans, Some("Active Plans"));
-//! assert!(titled_output.contains("# Active Plans"));
-//! ```
 //!
 //! ### Operation Results
 //!
@@ -129,7 +96,7 @@
 //! 4. **Consistent Structure**: Headers, metadata, content follow standard
 //!    patterns
 
-use std::fmt;
+use std::{fmt, ops::Index};
 
 use crate::models::{Plan, PlanSummary, Step};
 
@@ -322,6 +289,102 @@ impl fmt::Display for DeleteResult<Step> {
     }
 }
 
+/// Newtype wrapper for displaying collections of plan summaries.
+///
+/// This provides clean Display formatting for plan collections without title handling,
+/// allowing consumers to handle titles separately. Handles empty collections gracefully.
+///
+/// # Examples
+///
+/// ```rust
+/// use beacon_core::{
+///     display::PlanSummaries,
+///     models::{PlanStatus, PlanSummary},
+/// };
+/// use jiff::Timestamp;
+///
+/// let plan = PlanSummary {
+///     id: 1,
+///     title: "My Project".to_string(),
+///     description: Some("A test project".to_string()),
+///     status: PlanStatus::Active,
+///     directory: Some("/home/user/project".to_string()),
+///     created_at: Timestamp::now(),
+///     updated_at: Timestamp::now(),
+///     total_steps: 5,
+///     completed_steps: 2,
+///     pending_steps: 3,
+/// };
+/// let plans = vec![plan];
+///
+/// // Format a collection of plans
+/// let summaries = PlanSummaries(plans);
+/// let output = format!("{}", summaries);
+/// assert!(output.contains("My Project"));
+/// ```
+pub struct PlanSummaries(pub Vec<PlanSummary>);
+
+impl PlanSummaries {
+    /// Check if the collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Get the number of plan summaries in the collection.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Get a reference to the plan summary at the given index.
+    pub fn get(&self, index: usize) -> Option<&PlanSummary> {
+        self.0.get(index)
+    }
+
+    /// Get an iterator over the plan summaries.
+    pub fn iter(&self) -> std::slice::Iter<'_, PlanSummary> {
+        self.0.iter()
+    }
+}
+
+impl Index<usize> for PlanSummaries {
+    type Output = PlanSummary;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IntoIterator for PlanSummaries {
+    type Item = PlanSummary;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a PlanSummaries {
+    type Item = &'a PlanSummary;
+    type IntoIter = std::slice::Iter<'a, PlanSummary>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl fmt::Display for PlanSummaries {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.is_empty() {
+            writeln!(f, "No plans found.")
+        } else {
+            for plan in &self.0 {
+                write!(f, "{}", plan)?;
+            }
+            Ok(())
+        }
+    }
+}
+
 /// Wrapper type for displaying operation confirmation messages.
 ///
 /// This provides consistent formatting for operations that require
@@ -356,55 +419,98 @@ impl fmt::Display for OperationStatus {
     }
 }
 
-// ============================================================================
-// Direct collection formatting functions
-// ============================================================================
-
-/// Format a collection of plans with an optional title.
+/// Newtype wrapper for displaying collections of steps.
 ///
-/// This provides idiomatic Rust formatting for collections of plans
-/// without requiring wrapper types. Handles empty collections gracefully.
-pub fn format_plan_list(plans: &[PlanSummary], title: Option<&str>) -> String {
-    let mut result = String::new();
+/// This wrapper provides Display implementation for collections of steps
+/// without requiring title formatting logic. It handles empty collections
+/// gracefully and formats each step using the existing Step Display trait.
+///
+/// # Examples
+///
+/// ```rust
+/// use beacon_core::{display::Steps, models::{Step, StepStatus}};
+/// use jiff::Timestamp;
+///
+/// // Create a collection of steps
+/// let step = Step {
+///     id: 1,
+///     plan_id: 42,
+///     title: "Example step".to_string(),
+///     description: None,
+///     acceptance_criteria: None,
+///     references: vec![],
+///     status: StepStatus::Todo,
+///     result: None,
+///     order: 0,
+///     created_at: Timestamp::now(),
+///     updated_at: Timestamp::now(),
+/// };
+/// let steps = Steps(vec![step]);
+/// println!("{}", steps);
+/// ```
+pub struct Steps(pub Vec<Step>);
 
-    if let Some(title) = title {
-        result.push_str(&format!("# {title}\n\n"));
+impl Steps {
+    /// Check if the collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
-    if plans.is_empty() {
-        result.push_str("No plans found.\n");
-        return result;
+    /// Get the number of steps in the collection.
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
-    for plan in plans {
-        result.push_str(&format!("{plan}"));
+    /// Get a reference to the step at the given index.
+    pub fn get(&self, index: usize) -> Option<&Step> {
+        self.0.get(index)
     }
 
-    result
+    /// Get an iterator over the steps.
+    pub fn iter(&self) -> std::slice::Iter<'_, Step> {
+        self.0.iter()
+    }
 }
 
-/// Format a collection of steps with an optional title.
-///
-/// This provides idiomatic Rust formatting for collections of steps
-/// without requiring wrapper types. Handles empty collections gracefully.
-pub fn format_step_list(steps: &[Step], title: Option<&str>) -> String {
-    let mut result = String::new();
+impl Index<usize> for Steps {
+    type Output = Step;
 
-    if let Some(title) = title {
-        result.push_str(&format!("# {title}\n\n"));
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
     }
-
-    if steps.is_empty() {
-        result.push_str("No steps found.\n");
-        return result;
-    }
-
-    for step in steps {
-        result.push_str(&format!("{step}"));
-    }
-
-    result
 }
+
+impl IntoIterator for Steps {
+    type Item = Step;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Steps {
+    type Item = &'a Step;
+    type IntoIter = std::slice::Iter<'a, Step>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl fmt::Display for Steps {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.is_empty() {
+            write!(f, "No steps found.\n")
+        } else {
+            for step in &self.0 {
+                write!(f, "{}", step)?;
+            }
+            Ok(())
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -444,21 +550,42 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_format_plan_list() {
-        let plans = vec![create_test_plan_summary()];
-        let output = format_plan_list(&plans, None);
-        assert!(output.contains("Test Plan"));
-        assert!(output.contains("ID: 1"));
-    }
 
     #[test]
-    fn test_format_step_list() {
-        let steps = vec![create_test_step()];
-        let output = format_step_list(&steps, None);
-        assert!(output.contains("Test Step"));
-        assert!(output.contains("○ Todo"));
+    fn test_plan_summaries_display() {
+        // Test with plans
+        let plans = vec![create_test_plan_summary()];
+        let summaries = PlanSummaries(plans);
+        let output = format!("{}", summaries);
+        assert!(output.contains("Test Plan"));
+        assert!(output.contains("ID: 1"));
+
+        // Test empty collection
+        let empty_summaries = PlanSummaries(vec![]);
+        let empty_output = format!("{}", empty_summaries);
+        assert_eq!(empty_output, "No plans found.\n");
+
+        // Test multiple plans
+        let plan1 = create_test_plan_summary();
+        let mut plan2 = create_test_plan_summary();
+        plan2.id = 2;
+        plan2.title = "Second Plan".to_string();
+        let plans = vec![plan1, plan2];
+        let summaries = PlanSummaries(plans);
+        let output = format!("{}", summaries);
+        assert!(output.contains("Test Plan"));
+        assert!(output.contains("Second Plan"));
+        assert!(output.contains("ID: 1"));
+        assert!(output.contains("ID: 2"));
+
+        // Verify the output uses PlanSummary's own Display format (which includes ##)
+        // but doesn't add additional title formatting
+        assert!(output.contains("## Test Plan"));
+        assert!(output.contains("## Second Plan"));
+        // Verify it doesn't start with a title header
+        assert!(!output.starts_with("# "));
     }
+
 
     #[test]
     fn test_operation_status_display() {
@@ -467,5 +594,40 @@ mod tests {
 
         let failure = OperationStatus::failure("Operation failed".to_string());
         assert!(format!("{}", failure).contains("Error:"));
+    }
+
+    #[test]
+    fn test_steps_display_empty() {
+        let steps = Steps(vec![]);
+        let output = format!("{}", steps);
+        assert_eq!(output, "No steps found.\n");
+    }
+
+    #[test]
+    fn test_steps_display_single_step() {
+        let step = create_test_step();
+        let steps = Steps(vec![step]);
+        let output = format!("{}", steps);
+        
+        assert!(output.contains("Test Step"));
+        assert!(output.contains("○ Todo"));
+        assert!(output.contains("Should work"));
+    }
+
+    #[test]
+    fn test_steps_display_multiple_steps() {
+        let step1 = create_test_step();
+        let mut step2 = create_test_step();
+        step2.id = 2;
+        step2.title = "Second Step".to_string();
+        step2.status = crate::models::StepStatus::Done;
+        
+        let steps = Steps(vec![step1, step2]);
+        let output = format!("{}", steps);
+        
+        assert!(output.contains("Test Step"));
+        assert!(output.contains("Second Step"));
+        assert!(output.contains("○ Todo"));
+        assert!(output.contains("✓ Done"));
     }
 }
