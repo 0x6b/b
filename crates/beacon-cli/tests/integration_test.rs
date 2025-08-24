@@ -190,7 +190,8 @@ async fn test_list_plans_consistency() {
     let summary2 = beacon_core::PlanSummary::from_plan(plan2, 0, 0);
 
     let summaries = vec![summary1, summary2];
-    let direct_output = beacon_core::display::format_plan_list(&summaries, Some("Active Plans"));
+    let collection = beacon_core::display::PlanSummaries(summaries);
+    let direct_output = format!("# Active Plans\n\n{}", collection);
 
     // Both should have similar structure
     assert!(cli_output.contains("# Active Plans"));
@@ -213,7 +214,8 @@ async fn test_empty_list_consistency() {
 
     // Create empty list directly
     let summaries: Vec<beacon_core::PlanSummary> = vec![];
-    let direct_output = beacon_core::display::format_plan_list(&summaries, Some("Active Plans"));
+    let collection = beacon_core::display::PlanSummaries(summaries);
+    let direct_output = format!("# Active Plans\n\n{}", collection);
 
     // Both should have similar empty structure
     assert!(cli_output.contains("# Active Plans"));
@@ -290,10 +292,11 @@ async fn test_show_plan_consistency() {
         .await
         .expect("Failed to get plan")
         .expect("Plan not found");
-    full_plan.steps = planner
+    let steps_wrapper = planner
         .get_steps(&params)
         .await
         .expect("Failed to get steps");
+    full_plan.steps = steps_wrapper.0;
 
     let direct_output = full_plan.to_string();
 
@@ -387,7 +390,8 @@ async fn test_cli_vs_mcp_list_output() {
 
     // Simulate MCP-style empty list output
     let empty_plans: Vec<beacon_core::PlanSummary> = vec![];
-    let mcp_empty_str = beacon_core::display::format_plan_list(&empty_plans, Some("Active Plans"));
+    let collection = beacon_core::display::PlanSummaries(empty_plans);
+    let mcp_empty_str = format!("# Active Plans\n\n{}", collection);
 
     // Both should produce the same output for empty lists
     assert_eq!(cli_empty.trim(), mcp_empty_str.trim());
@@ -434,17 +438,18 @@ async fn test_cli_vs_mcp_list_output() {
             .expect("Failed to get steps");
 
         let completed_steps = steps
+            .0
             .iter()
             .filter(|s| s.status == beacon_core::StepStatus::Done)
             .count() as u32;
-        let total_steps = steps.len() as u32;
+        let total_steps = steps.0.len() as u32;
 
         let summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
         plan_summaries.push(summary);
     }
 
-    let mcp_list_str =
-        beacon_core::display::format_plan_list(&plan_summaries, Some("Active Plans"));
+    let collection = beacon_core::display::PlanSummaries(plan_summaries);
+    let mcp_list_str = format!("# Active Plans\n\n{}", collection);
 
     // Both outputs should have the same structure
     assert!(cli_list.contains("# Active Plans"));
@@ -532,10 +537,11 @@ async fn test_cli_vs_mcp_show_plan_output() {
         .expect("Failed to get plan")
         .expect("Plan not found");
 
-    plan.steps = planner
+    let steps_wrapper = planner
         .get_steps(&params)
         .await
         .expect("Failed to get steps");
+    plan.steps = steps_wrapper.0;
 
     let mcp_show = plan.to_string();
 
