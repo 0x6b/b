@@ -35,6 +35,7 @@ See `beacon help` for more commands.
 Beacon is organized into focused modules that work together:
 
 ### Display Architecture
+
 ```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │  Domain Models  │    │ Format Functions│    │   Formatted     │
@@ -44,6 +45,7 @@ Beacon is organized into focused modules that work together:
 ```
 
 ### Database Layer
+
 ```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Migrations    │    │     Queries     │    │    Database     │
@@ -54,6 +56,7 @@ Beacon is organized into focused modules that work together:
 ```
 
 ### Planner Coordination
+
 ```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │    Handlers     │    │   Operations    │    │    Database     │

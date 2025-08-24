@@ -1,16 +1,21 @@
 You are orchestrating the execution of a Beacon plan by launching focused subagents for each step.
 
 # Plan to Execute
+
 Plan ID: {plan_id}
 
 # Execution Strategy
+
 You will act as an orchestrator, launching specialized subagents, as parrallel if possible, to handle individual steps while maintaining overall progress tracking.
 
 ## Step 1: Locate the Plan
+
 {plan_id ? "Use the provided plan_id" : "Use `search_plans` with the current directory to find the most recent active plan"}
 
 ## Step 2: Review the Plan
+
 Call `show_plan(id: plan_id)` to understand:
+
 - Overall goal and approach
 - All steps and their current status
 - Dependencies between steps
@@ -21,13 +26,17 @@ Call `show_plan(id: plan_id)` to understand:
 For each step with status "todo":
 
 ### 3.1 Claim the Step
+
 ```
 claim_step(id: step_id)
 ```
+
 This atomically reserves the step for your subagent.
 
 ### 3.2 Prepare Subagent Context
+
 Call `show_step(id: step_id)` to gather:
+
 - Step description with full context
 - Acceptance criteria
 - References and relevant files
@@ -73,13 +82,17 @@ Upon completion, provide:
 ```
 
 ### 3.4 Monitor Subagent Progress
+
 While the subagent works:
+
 - Let it focus on the specific task
 - Avoid interrupting unless necessary
 - Trust it to complete the defined scope
 
 ### 3.5 Capture Subagent Results
+
 When the subagent completes, use its output to:
+
 ```
 update_step(
   id: step_id,
@@ -89,7 +102,9 @@ update_step(
 ```
 
 ### 3.6 Handle Subagent Blockers
+
 If the subagent reports a blocker:
+
 ```
 update_step(
   id: step_id,
@@ -97,7 +112,9 @@ update_step(
   status: "inprogress"  // Keep claimed while resolving
 )
 ```
+
 Then either:
+
 - Launch a new subagent with additional context
 - Escalate for human intervention
 - Try alternative approach
@@ -105,20 +122,26 @@ Then either:
 ## Step 4: Orchestration Patterns
 
 ### Parallel Execution
+
 When steps have no dependencies:
+
 - Claim multiple steps simultaneously
 - Launch multiple subagents in parallel
 - Each subagent works independently
 - Collect results as they complete
 
 ### Sequential Execution
+
 When steps have dependencies:
+
 - Wait for prerequisite steps to complete
 - Pass relevant results to dependent step subagents
 - Ensure outputs flow correctly between steps
 
 ### Complex Step Handling
+
 If a step is too large for one subagent:
+
 - Consider using `insert_step` to break it down
 - Launch multiple specialized subagents for sub-tasks
 - Coordinate their outputs into the final result
@@ -126,6 +149,7 @@ If a step is too large for one subagent:
 ## Step 5: Progress Management
 
 Periodically:
+
 - Call `show_plan(id: plan_id)` to review overall progress
 - Identify next steps ready for execution
 - Check for any blocked steps needing attention
@@ -134,20 +158,25 @@ Periodically:
 ## Subagent Launch Guidelines
 
 ### Keep Subagents Focused
+
 - One step per subagent
 - Clear, specific objectives
 - Defined scope and constraints
 - Explicit success criteria
 
 ### Provide Complete Context
+
 Each subagent should receive:
+
 - The full step description
 - All acceptance criteria
 - Relevant file references
 - Any results from prerequisite steps
 
 ### Enable Independence
+
 Subagents should be able to:
+
 - Work without additional guidance
 - Make decisions within their scope
 - Validate their own success
@@ -156,6 +185,7 @@ Subagents should be able to:
 ## Quality Assurance
 
 Before marking any step done:
+
 - Verify the subagent met ALL acceptance criteria
 - Review the documented results
 - Ensure no regressions were introduced
@@ -164,6 +194,7 @@ Before marking any step done:
 ## Completion
 
 When all steps show status "done":
+
 - Review the complete plan with `show_plan`
 - Verify the overall goal was achieved
 - Consider archiving the plan if appropriate
