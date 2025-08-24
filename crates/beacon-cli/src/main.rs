@@ -11,9 +11,9 @@ use std::str::FromStr;
 
 use anyhow::{Context, Result};
 use beacon_core::{
-    params::DeletePlan,
-    CreatePlan, CreateResult, Id, InsertStep, ListPlans, OperationStatus, Planner, PlannerBuilder,
-    SearchPlans, StepCreate, StepStatus, SwapSteps, UpdateResult, UpdateStep,
+    params::DeletePlan, CreatePlan, CreateResult, Id, InsertStep, ListPlans, OperationStatus,
+    Planner, PlannerBuilder, SearchPlans, StepCreate, StepStatus, SwapSteps, UpdateResult,
+    UpdateStep,
 };
 use clap::Parser;
 use cli::{Cli, Commands, PlanCommands, StepCommands};
@@ -45,11 +45,15 @@ async fn main() -> Result<()> {
     info!("Beacon started");
 
     // Dispatch to command handlers
-    use Commands::*;
     match cli.command {
-        Plan { command } => handle_plan_command(planner, command, &renderer).await,
-        Step { command } => handle_step_command(planner, command, &renderer).await,
-        Serve => handle_serve(planner).await,
+        Some(Commands::Plan { command }) => handle_plan_command(planner, command, &renderer).await,
+        Some(Commands::Step { command }) => handle_step_command(planner, command, &renderer).await,
+        Some(Commands::Serve) => handle_serve(planner).await,
+        None => {
+            // Default to listing active plans
+            let list_params = ListPlans { archived: false };
+            handle_plan_list(planner, &list_params, &renderer).await
+        }
     }
 }
 
@@ -213,7 +217,9 @@ async fn handle_plan_delete(
     renderer: &TerminalRenderer,
 ) -> Result<()> {
     let delete_params: DeletePlan = args.into();
-    let id_params = Id { id: delete_params.id };
+    let id_params = Id {
+        id: delete_params.id,
+    };
 
     let steps = planner
         .get_steps(&id_params)

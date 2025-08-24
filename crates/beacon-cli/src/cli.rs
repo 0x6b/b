@@ -79,7 +79,7 @@ pub struct Cli {
     pub no_color: bool,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 /// Available commands for the Beacon CLI
