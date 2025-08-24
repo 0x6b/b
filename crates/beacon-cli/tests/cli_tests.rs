@@ -9,7 +9,7 @@ fn create_cli_test_environment() -> TempDir {
 
 /// Helper function to create a Command with --no-color flag for testing
 fn beacon_cmd() -> Command {
-    let mut cmd = Command::cargo_bin("beacon").expect("Failed to find beacon binary");
+    let mut cmd = Command::cargo_bin("b").expect("Failed to find b binary");
     cmd.arg("--no-color");
     cmd
 }
@@ -454,7 +454,7 @@ fn test_cli_version_output() {
         .args(["--version"])
         .assert()
         .success()
-        .stdout(predicate::str::starts_with("beacon "));
+        .stdout(predicate::str::starts_with("b "));
 }
 
 #[test]

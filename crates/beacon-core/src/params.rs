@@ -147,7 +147,7 @@ pub struct UpdateStep {
     /// Format using Markdown with **bold headers** and detailed bullet points:
     /// - What was created/modified (with file paths)
     /// - Technical implementation details
-    /// - Preserved functionality and behavior  
+    /// - Preserved functionality and behavior
     /// - Validation results (tests, builds, etc.)
     ///
     /// Example: "Successfully extracted watch functionality to watch.rs:
