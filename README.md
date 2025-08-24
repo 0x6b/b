@@ -10,7 +10,7 @@ $ cd b
 $ cargo install --path crates/beacon-cli
 ```
 
-## Quick Start with Cloud Code
+## Quick Start with Claude Code
 
 Use an embedded prompt template to create a plan and execute it:
 
