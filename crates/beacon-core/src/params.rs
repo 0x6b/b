@@ -1,43 +1,8 @@
-//! Parameter structures for Beacon operations
+//! Parameter structures for Beacon operations.
 //!
 //! This module contains shared parameter structures that can be used across
 //! different interfaces (CLI, MCP, etc.) without framework-specific derives or
-//! dependencies. These structures provide a clean interface for passing data
-//! between different layers of the application.
-//!
-//! ## Architecture: Parameter Wrapper Pattern
-//!
-//! This module implements a parameter wrapper pattern that enables clean
-//! separation of concerns between the core domain logic and interface-specific
-//! frameworks:
-//!
-//! ```text
-//! ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-//! │   CLI Args      │    │   MCP Params    │    │  Core Params    │
-//! │  (clap derives) │───▶│ (serde derives) │───▶│ (minimal deps)  │
-//! └─────────────────┘    └──────────────────┘    └─────────────────┘
-//! ```
-//!
-//! ### Benefits
-//!
-//! 1. **Separation of Concerns**: Core parameter structures remain independent
-//!    of UI framework dependencies (clap, serde, schemars).
-//!
-//! 2. **Interface Flexibility**: Each interface (CLI, MCP, future REST API) can
-//!    add its own framework-specific derives without polluting core logic.
-//!
-//! 3. **Conditional Compilation**: Features like JSON schema generation can be
-//!    enabled only where needed, keeping core lightweight.
-//!
-//! 4. **Type Safety**: Wrapper pattern ensures compile-time verification of
-//!    parameter conversion between layers.
-//!
-//! ### Usage Pattern
-//!
-//! Interface layers create wrapper structs that:
-//! - Add framework-specific derives (clap::Args, schemars::JsonSchema, etc.)
-//! - Use transparent serialization (`#[serde(transparent)]`)
-//! - Convert to core parameters via `.into()` or accessor methods
+//! dependencies.
 //!
 //! ```ignore
 //! // In CLI module
@@ -315,245 +280,78 @@ mod tests {
     use super::*;
     use crate::{models::StepStatus, PlannerError};
 
-    #[test]
-    fn test_update_step_validate_valid_todo() {
-        let params = UpdateStep {
+    /// Helper function to create an UpdateStep with status and optional result
+    fn update_with_status(status: Option<&str>, result: Option<&str>) -> UpdateStep {
+        UpdateStep {
             id: 1,
-            status: Some("todo".to_string()),
+            status: status.map(|s| s.to_string()),
+            result: result.map(|r| r.to_string()),
             ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, Some(StepStatus::Todo));
-        assert_eq!(result_desc, None);
+        }
     }
 
-    #[test]
-    fn test_update_step_validate_valid_inprogress() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("inprogress".to_string()),
-            ..Default::default()
-        };
-
+    /// Helper function to assert validation succeeds and returns expected values
+    fn assert_validates_to(params: &UpdateStep, expected_status: Option<StepStatus>, expected_result: Option<&str>) {
         let result = params.validate();
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Validation should succeed");
 
         let (status, result_desc) = result.unwrap();
-        assert_eq!(status, Some(StepStatus::InProgress));
-        assert_eq!(result_desc, None);
+        assert_eq!(status, expected_status);
+        assert_eq!(result_desc, expected_result.map(|s| s.to_string()));
     }
 
-    #[test]
-    fn test_update_step_validate_valid_done_with_result() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("done".to_string()),
-            result: Some("Successfully completed".to_string()),
-            ..Default::default()
-        };
-
+    /// Helper function to assert validation fails with specific error details
+    fn assert_validation_error(params: &UpdateStep, expected_field: &str, expected_reason_contains: &str) {
         let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, Some(StepStatus::Done));
-        assert_eq!(result_desc, Some("Successfully completed".to_string()));
-    }
-
-    #[test]
-    fn test_update_step_validate_done_missing_result() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("done".to_string()),
-            result: None,
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_err());
+        assert!(result.is_err(), "Validation should fail");
 
         match result.unwrap_err() {
             PlannerError::InvalidInput { field, reason } => {
-                assert_eq!(field, "result");
-                assert!(reason.contains("Result description is required"));
+                assert_eq!(field, expected_field);
+                assert!(reason.contains(expected_reason_contains), 
+                    "Expected reason to contain '{}', got: {}", expected_reason_contains, reason);
             }
             _ => panic!("Expected InvalidInput error"),
         }
     }
 
     #[test]
-    fn test_update_step_validate_invalid_status() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("invalid".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            PlannerError::InvalidInput { field, reason } => {
-                assert_eq!(field, "status");
-                assert!(reason.contains("Invalid status: invalid"));
-            }
-            _ => panic!("Expected InvalidInput error"),
-        }
+    fn test_valid_status_transitions() {
+        // Test valid status changes without result
+        assert_validates_to(&update_with_status(Some("todo"), None), Some(StepStatus::Todo), None);
+        assert_validates_to(&update_with_status(Some("inprogress"), None), Some(StepStatus::InProgress), None);
+        assert_validates_to(&update_with_status(Some("in_progress"), None), Some(StepStatus::InProgress), None);
+        
+        // Test done status with result
+        assert_validates_to(
+            &update_with_status(Some("done"), Some("Successfully completed")), 
+            Some(StepStatus::Done), 
+            Some("Successfully completed")
+        );
     }
 
     #[test]
-    fn test_update_step_validate_no_status() {
-        let params = UpdateStep {
-            id: 1,
-            status: None,
-            result: Some("Some result".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, None);
-        assert_eq!(result_desc, Some("Some result".to_string()));
+    fn test_no_status_changes() {
+        // Test validation with no status change
+        assert_validates_to(&UpdateStep::default(), None, None);
+        assert_validates_to(&update_with_status(None, Some("Some result")), None, Some("Some result"));
     }
 
     #[test]
-    fn test_update_step_validate_alternative_inprogress_spelling() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("in_progress".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, Some(StepStatus::InProgress));
-        assert_eq!(result_desc, None);
+    fn test_done_status_requires_result() {
+        assert_validation_error(
+            &update_with_status(Some("done"), None),
+            "result",
+            "Result description is required"
+        );
     }
 
     #[test]
-    fn test_update_step_validate_no_changes() {
-        let params = UpdateStep::default();
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, None);
-        assert_eq!(result_desc, None);
-    }
-
-    #[test]
-    fn test_validate_step_update_valid_todo() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("todo".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, Some(StepStatus::Todo));
-        assert_eq!(result_desc, None);
-    }
-
-    #[test]
-    fn test_validate_step_update_valid_inprogress() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("inprogress".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, Some(StepStatus::InProgress));
-        assert_eq!(result_desc, None);
-    }
-
-    #[test]
-    fn test_validate_step_update_valid_done_with_result() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("done".to_string()),
-            result: Some("Successfully completed".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, Some(StepStatus::Done));
-        assert_eq!(result_desc, Some("Successfully completed".to_string()));
-    }
-
-    #[test]
-    fn test_validate_step_update_done_missing_result() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("done".to_string()),
-            result: None,
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            PlannerError::InvalidInput { field, reason } => {
-                assert_eq!(field, "result");
-                assert!(reason.contains("Result description is required"));
-            }
-            _ => panic!("Expected InvalidInput error"),
-        }
-    }
-
-    #[test]
-    fn test_validate_step_update_invalid_status() {
-        let params = UpdateStep {
-            id: 1,
-            status: Some("invalid".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            PlannerError::InvalidInput { field, reason } => {
-                assert_eq!(field, "status");
-                assert!(reason.contains("Invalid status: invalid"));
-            }
-            _ => panic!("Expected InvalidInput error"),
-        }
-    }
-
-    #[test]
-    fn test_validate_step_update_no_status() {
-        let params = UpdateStep {
-            id: 1,
-            status: None,
-            result: Some("Some result".to_string()),
-            ..Default::default()
-        };
-
-        let result = params.validate();
-        assert!(result.is_ok());
-
-        let (status, result_desc) = result.unwrap();
-        assert_eq!(status, None);
-        assert_eq!(result_desc, Some("Some result".to_string()));
+    fn test_invalid_status_rejected() {
+        assert_validation_error(
+            &update_with_status(Some("invalid"), None),
+            "status",
+            "Invalid status: invalid"
+        );
     }
 }
