@@ -14,7 +14,7 @@ async fn create_test_planner() -> (Planner, TempDir) {
     let db_path = temp_dir.path().join("test.db");
 
     let planner = PlannerBuilder::new()
-        .with_database_path(db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
@@ -414,7 +414,7 @@ async fn test_cli_vs_mcp_list_output() {
 
     // Simulate MCP server behavior - get plans and format them
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
@@ -525,7 +525,7 @@ async fn test_cli_vs_mcp_show_plan_output() {
 
     // Simulate MCP server show_plan behavior
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
@@ -580,7 +580,7 @@ async fn test_cli_vs_mcp_show_step_output() {
 
     // Simulate MCP server show_step behavior
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");

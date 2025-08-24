@@ -16,7 +16,7 @@ async fn test_complete_plan_workflow() {
     let (_temp_dir, db_path) = create_test_environment();
 
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
@@ -141,7 +141,7 @@ async fn test_database_persistence_across_connections() {
     let plan_id = {
         // Create planner and plan in first connection
         let planner = PlannerBuilder::new()
-            .with_database_path(&db_path)
+            .with_database_path(Some(db_path.clone()))
             .build()
             .await
             .expect("Failed to create first planner");
@@ -171,7 +171,7 @@ async fn test_database_persistence_across_connections() {
 
     // Create new planner instance (simulating app restart)
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create second planner");
@@ -198,7 +198,7 @@ async fn test_error_handling_invalid_operations() {
     let (_temp_dir, db_path) = create_test_environment();
 
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
@@ -251,7 +251,7 @@ async fn test_plan_with_steps_retrieval() {
     let (_temp_dir, db_path) = create_test_environment();
 
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
@@ -304,7 +304,7 @@ async fn test_step_removal() {
     let (_temp_dir, db_path) = create_test_environment();
 
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
@@ -370,7 +370,7 @@ async fn test_plan_archiving() {
     let (_temp_dir, db_path) = create_test_environment();
 
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");

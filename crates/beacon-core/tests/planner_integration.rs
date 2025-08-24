@@ -1,10 +1,12 @@
 //! Integration tests for the planner module.
 
-use beacon_core::params::{
-    CreatePlan, DeletePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps,
-    UpdateStep,
+use beacon_core::{
+    params::{
+        CreatePlan, DeletePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps,
+        UpdateStep,
+    },
+    PlannerBuilder,
 };
-use beacon_core::PlannerBuilder;
 use tempfile::TempDir;
 
 #[tokio::test]
@@ -125,7 +127,7 @@ async fn test_show_plan_with_steps() {
 
     // Test show_plan_with_steps
     let retrieved_plan = planner
-        .show_plan_with_steps(&Id { id: plan.id })
+        .get_plan(&Id { id: plan.id })
         .await
         .expect("Failed to show plan with steps")
         .expect("Plan should exist");
@@ -142,7 +144,7 @@ async fn test_show_plan_with_steps_not_found() {
 
     // Test non-existent plan
     let result = planner
-        .show_plan_with_steps(&Id { id: 999 })
+        .get_plan(&Id { id: 999 })
         .await
         .expect("Should not fail on non-existent plan");
 
@@ -514,7 +516,7 @@ async fn test_claim_step_atomically() {
 
     // Test claim_step_atomically
     let claimed = planner
-        .claim_step_atomically(&Id { id: step.id })
+        .claim_step(&Id { id: step.id })
         .await
         .expect("Failed to claim step");
 
@@ -532,7 +534,7 @@ async fn test_claim_step_atomically() {
 
     // Test claiming already claimed step
     let claimed_again = planner
-        .claim_step_atomically(&Id { id: step.id })
+        .claim_step(&Id { id: step.id })
         .await
         .expect("Failed to attempt claiming again");
 
@@ -555,7 +557,7 @@ async fn test_add_step_to_plan() {
 
     // Test add_step_to_plan
     let step = planner
-        .add_step_to_plan(&StepCreate {
+        .add_step(&StepCreate {
             plan_id: plan.id,
             title: "New Step".to_string(),
             description: Some("Step description".to_string()),
@@ -615,7 +617,7 @@ async fn test_insert_step_to_plan() {
 
     // Test insert_step_to_plan at position 1 (between first and third)
     let inserted_step = planner
-        .insert_step_to_plan(&InsertStep {
+        .insert_step(&InsertStep {
             step: StepCreate {
                 plan_id: plan.id,
                 title: "Second Step".to_string(),
@@ -669,7 +671,7 @@ async fn test_show_step_details() {
 
     // Test show_step_details
     let retrieved_step = planner
-        .show_step_details(&Id { id: step.id })
+        .get_step(&Id { id: step.id })
         .await
         .expect("Failed to show step details")
         .expect("Step should exist");
@@ -735,7 +737,7 @@ async fn test_swap_step_positions() {
 
     // Test swap_step_positions
     planner
-        .swap_step_positions(&SwapSteps {
+        .swap_steps(&SwapSteps {
             step1_id: step1.id,
             step2_id: step3.id,
         })
@@ -759,7 +761,7 @@ pub async fn create_test_planner() -> (TempDir, beacon_core::Planner) {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
     let planner = PlannerBuilder::new()
-        .with_database_path(&db_path)
+        .with_database_path(Some(db_path))
         .build()
         .await
         .expect("Failed to create planner");
