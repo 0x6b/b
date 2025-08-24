@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use anyhow::{Context, Result};
 use beacon_core::{
-    params::*, CreateResult, Id, OperationStatus, Planner, StepStatus, UpdateResult,
+    CreateResult, Id, OperationStatus, Planner, StepStatus, UpdateResult, params::*,
 };
 use clap::{Parser, Subcommand, ValueEnum};
 
@@ -126,7 +126,7 @@ impl Cli {
     async fn delete_plan(&self, args: &DeletePlan) -> Result<()> {
         let plan = self
             .planner
-            .delete_plan(&args)
+            .delete_plan(args)
             .await
             .with_context(|| format!("Failed to delete plan {}", &args.id))?
             .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", &args.id))?;
@@ -202,16 +202,15 @@ impl Cli {
         }
 
         let status =
-            StepStatus::from_str(&params.status.as_ref().unwrap_or(&"".to_string())).unwrap();
+            StepStatus::from_str(params.status.as_ref().unwrap_or(&"".to_string())).unwrap();
 
         // Validate result requirement for done status
-        if let StepStatus::Done = status {
-            if params.result.is_none() {
+        if let StepStatus::Done = status
+            && params.result.is_none() {
                 return Err(anyhow::anyhow!(
                     "Result description is required when marking a step as done. Use --result to describe what was accomplished."
                 ));
             }
-        }
 
         // Build list of changes made for display
         let mut changes = Vec::new();

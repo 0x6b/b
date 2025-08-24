@@ -8,10 +8,10 @@ members = [
 [workspace.package]
 version = "0.1.0"
 authors = ["Beacon Contributors"]
-edition = "2021"
-rust-version = "1.70"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/beacon-rs/beacon"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+repository = "https://github.com/0x6b/beacon"
 
 [workspace.dependencies]
 # Core dependencies

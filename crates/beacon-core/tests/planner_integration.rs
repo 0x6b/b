@@ -1,11 +1,11 @@
 //! Integration tests for the planner module.
 
 use beacon_core::{
+    PlannerBuilder,
     params::{
         CreatePlan, DeletePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps,
         UpdateStep,
     },
-    PlannerBuilder,
 };
 use tempfile::TempDir;
 

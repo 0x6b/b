@@ -1,7 +1,7 @@
 //! Step CRUD operations and queries.
 
 use jiff::Timestamp;
-use rusqlite::{params, types::Type, OptionalExtension};
+use rusqlite::{OptionalExtension, params, types::Type};
 
 use crate::{
     error::{DatabaseResultExt, PlannerError, Result},
@@ -263,14 +263,13 @@ impl super::Database {
     /// Result is ignored when changing to Todo or InProgress.
     pub fn update_step(&mut self, step_id: u64, request: UpdateStepRequest) -> Result<()> {
         // Validate result requirement when changing status to Done
-        if let Some(StepStatus::Done) = request.status {
-            if request.result.is_none() {
+        if let Some(StepStatus::Done) = request.status
+            && request.result.is_none() {
                 return Err(PlannerError::InvalidInput {
                     field: "result".into(),
                     reason: "Result description is required when marking a step as done".into(),
                 });
             }
-        }
 
         // Check if there's anything to update
         if request.title.is_none()

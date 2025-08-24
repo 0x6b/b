@@ -408,11 +408,13 @@ fn test_directory_path_conversion() {
 
     // Directory should be converted to absolute path
     assert!(relative_plan.directory.as_ref().unwrap().starts_with('/'));
-    assert!(relative_plan
-        .directory
-        .as_ref()
-        .unwrap()
-        .ends_with("projects/test"));
+    assert!(
+        relative_plan
+            .directory
+            .as_ref()
+            .unwrap()
+            .ends_with("projects/test")
+    );
 
     // Test absolute path preservation
     let absolute_plan = db

@@ -10,16 +10,17 @@ use anyhow::Result;
 use beacon_core::Planner;
 use log::{debug, error, info};
 use rmcp::{
+    ErrorData as McpError, RoleServer, ServerHandler,
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
         GetPromptRequestParam, GetPromptResult, Implementation, ListPromptsResult,
         PaginatedRequestParam, ProtocolVersion, ServerCapabilities, ServerInfo,
     },
     service::RequestContext,
-    tool, tool_handler, tool_router, ErrorData as McpError, RoleServer, ServerHandler,
+    tool, tool_handler, tool_router,
 };
 use tokio::{
-    signal::unix::{signal, SignalKind},
+    signal::unix::{SignalKind, signal},
     sync::Mutex,
 };
 
@@ -267,7 +268,7 @@ The `claim_step` tool provides atomic step claiming, ensuring that multiple agen
 
 /// Run the MCP server with stdio transport
 pub async fn run_stdio_server(server: BeaconMcpServer) -> Result<()> {
-    use rmcp::{transport::stdio, ServiceExt};
+    use rmcp::{ServiceExt, transport::stdio};
 
     info!("Starting Beacon MCP server on stdio");
     debug!(

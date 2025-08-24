@@ -5,7 +5,7 @@
 
 use std::fmt;
 
-use jiff::{tz::TimeZone, Timestamp};
+use jiff::{Timestamp, tz::TimeZone};
 
 /// A wrapper around `Timestamp` that provides system timezone formatting via
 /// the `Display` trait.

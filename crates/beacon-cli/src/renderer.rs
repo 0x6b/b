@@ -3,7 +3,7 @@
 //! This module provides terminal rendering capabilities using termimad
 //! for rich markdown display with optional fallback to plain text.
 
-use termimad::{crossterm::style::Color, MadSkin};
+use termimad::{MadSkin, crossterm::style::Color};
 
 /// Terminal renderer that can switch between rich and plain text output
 pub struct TerminalRenderer {

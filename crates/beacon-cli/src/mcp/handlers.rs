@@ -3,11 +3,13 @@
 use std::{future::Future, sync::Arc};
 
 use beacon_core::{
+    Planner,
     display::{CreateResult, OperationStatus},
-    params as core, Planner,
+    params as core,
 };
 use log::debug;
 use rmcp::{
+    ErrorData as McpError, RoleServer,
     handler::server::tool::Parameters,
     model::{
         CallToolResult, Content, GetPromptRequestParam, GetPromptResult, ListPromptsResult,
@@ -15,7 +17,7 @@ use rmcp::{
         PromptMessageRole,
     },
     service::RequestContext,
-    tool, ErrorData as McpError, RoleServer,
+    tool,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -56,8 +58,8 @@ where
         T::schema_name()
     }
 
-    fn json_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        T::json_schema(gen)
+    fn json_schema(g: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        T::json_schema(g)
     }
 }
 

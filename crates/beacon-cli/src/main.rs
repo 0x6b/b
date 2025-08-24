@@ -8,21 +8,25 @@ mod cli;
 mod mcp;
 mod renderer;
 
+use Commands::*;
 use anyhow::{Context, Result};
 use args::{Args, Commands};
-use beacon_core::{params::ListPlans, PlannerBuilder};
+use beacon_core::{PlannerBuilder, params::ListPlans};
 use clap::Parser;
 use cli::Cli;
 use log::info;
-use mcp::{run_stdio_server, BeaconMcpServer};
+use mcp::{BeaconMcpServer, run_stdio_server};
 use renderer::TerminalRenderer;
-use Commands::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
 
-    let Args { database_file, no_color, command } = Args::parse();
+    let Args {
+        database_file,
+        no_color,
+        command,
+    } = Args::parse();
 
     let planner = PlannerBuilder::new()
         .with_database_path(database_file)

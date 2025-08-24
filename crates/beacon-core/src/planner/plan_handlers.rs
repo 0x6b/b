@@ -41,7 +41,7 @@ impl Planner {
         let summaries: Vec<PlanSummary> = plans.iter().map(Into::into).collect();
         Ok(crate::display::PlanSummaries(summaries))
     }
-    
+
     /// Handle permanently deleting a plan with confirmation.
     ///
     /// Permanently removes a plan and all its associated steps from the

@@ -87,14 +87,13 @@ impl Step {
         }
 
         // Show result only for completed steps
-        if self.status == StepStatus::Done {
-            if let Some(result) = &self.result {
+        if self.status == StepStatus::Done
+            && let Some(result) = &self.result {
                 writeln!(f, "#### Result")?;
                 writeln!(f)?;
                 writeln!(f, "{result}")?;
                 writeln!(f)?;
             }
-        }
 
         if !self.references.is_empty() {
             writeln!(f, "#### References")?;

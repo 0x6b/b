@@ -1,7 +1,7 @@
 //! Plan CRUD operations and queries.
 
 use jiff::Timestamp;
-use rusqlite::{params, types::Type, OptionalExtension};
+use rusqlite::{OptionalExtension, params, types::Type};
 
 use crate::{
     error::{DatabaseResultExt, PlannerError, Result},
@@ -212,8 +212,8 @@ impl super::Database {
             .map_err(|e| PlannerError::database_error("Failed to fetch plans", e))?;
 
         // Apply completion filter if specified
-        if let Some(f) = filter {
-            if let Some(ref completion) = f.completion_status {
+        if let Some(f) = filter
+            && let Some(ref completion) = f.completion_status {
                 let mut filtered_plans =
                     self.filter_by_completion_with_counts(plans_with_counts, completion);
                 // Eagerly load steps for each filtered plan
@@ -222,7 +222,6 @@ impl super::Database {
                 }
                 return Ok(filtered_plans);
             }
-        }
 
         // If no completion filter, populate steps for each plan and return
         let mut plans: Vec<Plan> = plans_with_counts
