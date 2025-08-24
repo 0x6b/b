@@ -11,7 +11,7 @@ use std::str::FromStr;
 
 use anyhow::{Context, Result};
 use beacon_core::{
-    format_plan_list, CreatePlan, CreateResult, Id,
+    CreatePlan, CreateResult, Id,
     InsertStep, ListPlans, OperationStatus, Planner, PlannerBuilder, SearchPlans, StepCreate,
     StepStatus, SwapSteps, UpdateResult, UpdateStep,
 };
@@ -135,7 +135,7 @@ async fn handle_plan_list(
         "Active Plans"
     };
 
-    let formatted_output = format_plan_list(&plan_summaries, Some(title));
+    let formatted_output = format!("# {title}\n\n{}", plan_summaries);
     renderer.render(&formatted_output)?;
 
     Ok(())
@@ -173,8 +173,8 @@ async fn handle_plan_archive(
         .await
         .context("Failed to get steps")?;
 
-    let step_info = if !steps.is_empty() {
-        format!(" with {} step(s)", steps.len())
+    let step_info = if !steps.0.is_empty() {
+        format!(" with {} step(s)", steps.0.len())
     } else {
         String::new()
     };
@@ -235,13 +235,13 @@ async fn handle_plan_delete(
         .with_context(|| format!("Failed to delete plan {}", params.id))?
         .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
 
-    let step_info = if steps.is_empty() {
+    let step_info = if steps.0.is_empty() {
         String::new()
     } else {
         format!(
             " and {} step{}",
-            steps.len(),
-            if steps.len() == 1 { "" } else { "s" }
+            steps.0.len(),
+            if steps.0.len() == 1 { "" } else { "s" }
         )
     };
 
@@ -271,7 +271,7 @@ async fn handle_plan_search(
     };
     let title = format!("{status_text} plans in directory: {}", params.directory);
 
-    let formatted_output = format_plan_list(&plan_summaries, Some(&title));
+    let formatted_output = format!("# {title}\n\n{}", plan_summaries);
     renderer.render(&formatted_output)?;
 
     Ok(())

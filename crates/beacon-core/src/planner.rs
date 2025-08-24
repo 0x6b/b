@@ -228,18 +228,20 @@ impl Planner {
     }
 
     /// Retrieves all steps for a given plan.
-    pub async fn get_steps(&self, params: &Id) -> Result<Vec<Step>> {
+    pub async fn get_steps(&self, params: &Id) -> Result<crate::display::Steps> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
-        task::spawn_blocking(move || {
+        let steps = task::spawn_blocking(move || {
             let db = Database::new(&db_path)?;
             db.get_steps(plan_id)
         })
         .await
         .map_err(|e| PlannerError::Configuration {
             message: format!("Task join error: {e}"),
-        })?
+        })??;
+
+        Ok(crate::display::Steps(steps))
     }
 
     /// Retrieves a single step by its ID.
@@ -302,7 +304,7 @@ impl Planner {
     ///
     /// # Returns
     ///
-    /// A vector of PlanSummary objects with step counts
+    /// A PlanSummaries wrapper containing plan summary objects with step counts
     ///
     /// # Examples
     ///
@@ -315,10 +317,11 @@ impl Planner {
     /// # Result::<(), beacon_core::PlannerError>::Ok(())
     /// # };
     /// ```
-    pub async fn list_plans_summary(&self, params: &ListPlans) -> Result<Vec<PlanSummary>> {
+    pub async fn list_plans_summary(&self, params: &ListPlans) -> Result<crate::display::PlanSummaries> {
         let filter = Some(PlanFilter::from(params));
         let plans = self.list_plans(filter).await?;
-        Ok(plans.iter().map(Into::into).collect())
+        let summaries: Vec<PlanSummary> = plans.iter().map(Into::into).collect();
+        Ok(crate::display::PlanSummaries(summaries))
     }
 
     /// Handle showing a complete plan with all its steps.
@@ -505,7 +508,7 @@ impl Planner {
     ///
     /// # Returns
     ///
-    /// A vector of PlanSummary objects matching the search criteria
+    /// A PlanSummaries wrapper containing plan summary objects matching the search criteria
     ///
     /// # Examples
     ///
@@ -521,7 +524,7 @@ impl Planner {
     /// # Result::<(), beacon_core::PlannerError>::Ok(())
     /// # };
     /// ```
-    pub async fn search_plans_summary(&self, params: &SearchPlans) -> Result<Vec<PlanSummary>> {
+    pub async fn search_plans_summary(&self, params: &SearchPlans) -> Result<crate::display::PlanSummaries> {
         let plans = if params.archived {
             // For archived plans, use list_plans with directory filter
             let filter = PlanFilter::for_directory(params.directory.clone(), true);
@@ -531,7 +534,8 @@ impl Planner {
             self.search_plans_by_directory(params).await?
         };
 
-        Ok(plans.iter().map(Into::into).collect())
+        let summaries: Vec<PlanSummary> = plans.iter().map(Into::into).collect();
+        Ok(crate::display::PlanSummaries(summaries))
     }
 
     /// Handle adding a step to a plan.
@@ -887,11 +891,11 @@ mod tests {
             .await
             .expect("Failed to list plan summaries");
 
-        assert_eq!(summaries.len(), 1);
-        assert_eq!(summaries[0].title, "Test Plan");
-        assert_eq!(summaries[0].description, Some("Test Description".to_string()));
-        assert_eq!(summaries[0].total_steps, 1);
-        assert_eq!(summaries[0].completed_steps, 0);
+        assert_eq!(summaries.0.len(), 1);
+        assert_eq!(summaries.0[0].title, "Test Plan");
+        assert_eq!(summaries.0[0].description, Some("Test Description".to_string()));
+        assert_eq!(summaries.0[0].total_steps, 1);
+        assert_eq!(summaries.0[0].completed_steps, 0);
     }
 
     #[tokio::test]
@@ -919,15 +923,15 @@ mod tests {
             .await
             .expect("Failed to list archived plan summaries");
 
-        assert_eq!(summaries.len(), 1);
-        assert_eq!(summaries[0].title, "Archived Plan");
+        assert_eq!(summaries.0.len(), 1);
+        assert_eq!(summaries.0[0].title, "Archived Plan");
 
         // Verify active plans is empty
         let active_summaries = planner
             .list_plans_summary(&ListPlans { archived: false })
             .await
             .expect("Failed to list active plans");
-        assert_eq!(active_summaries.len(), 0);
+        assert_eq!(active_summaries.0.len(), 0);
     }
 
     #[tokio::test]
@@ -1168,9 +1172,9 @@ mod tests {
             .await
             .expect("Failed to search plans");
 
-        assert_eq!(summaries.len(), 1);
-        assert_eq!(summaries[0].title, "Plan in Test Dir");
-        assert_eq!(summaries[0].total_steps, 1);
+        assert_eq!(summaries.0.len(), 1);
+        assert_eq!(summaries.0[0].title, "Plan in Test Dir");
+        assert_eq!(summaries.0[0].total_steps, 1);
     }
 
     #[tokio::test]
@@ -1202,8 +1206,8 @@ mod tests {
             .await
             .expect("Failed to search archived plans");
 
-        assert_eq!(summaries.len(), 1);
-        assert_eq!(summaries[0].title, "Archived Plan in Dir");
+        assert_eq!(summaries.0.len(), 1);
+        assert_eq!(summaries.0[0].title, "Archived Plan in Dir");
 
         // Verify active search returns empty
         let active_summaries = planner
@@ -1213,7 +1217,7 @@ mod tests {
             })
             .await
             .expect("Failed to search active plans");
-        assert_eq!(active_summaries.len(), 0);
+        assert_eq!(active_summaries.0.len(), 0);
     }
 
     #[tokio::test]
