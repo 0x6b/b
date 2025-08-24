@@ -33,28 +33,6 @@ impl UpdateStepRequest {
     /// # Returns
     ///
     /// A new UpdateStepRequest with all provided parameters set
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use beacon_core::models::{StepStatus, UpdateStepRequest};
-    ///
-    /// let request = UpdateStepRequest::new(
-    ///     Some("Updated title".to_string()),
-    ///     None,
-    ///     None,
-    ///     None,
-    ///     Some(StepStatus::Done),
-    ///     Some("Task completed successfully".to_string()),
-    /// );
-    ///
-    /// assert_eq!(request.title, Some("Updated title".to_string()));
-    /// assert_eq!(request.status, Some(StepStatus::Done));
-    /// assert_eq!(
-    ///     request.result,
-    ///     Some("Task completed successfully".to_string())
-    /// );
-    /// ```
     pub fn new(
         title: Option<String>,
         description: Option<String>,
@@ -97,26 +75,7 @@ impl TryFrom<crate::params::UpdateStep> for UpdateStepRequest {
     /// * `PlannerError::InvalidInput` - When status string is invalid
     /// * `PlannerError::InvalidInput` - When result is missing for 'done'
     ///   status
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use beacon_core::{models::UpdateStepRequest, params::UpdateStep};
-    ///
-    /// // Valid conversion with status change
-    /// let mut params = UpdateStep::default();
-    /// params.id = 1;
-    /// params.status = Some("done".to_string());
-    /// params.result = Some("Completed successfully".to_string());
-    /// params.title = Some("New title".to_string());
-    ///
-    /// let request: UpdateStepRequest = params.try_into()?;
-    /// assert_eq!(request.title, Some("New title".to_string()));
-    /// # use beacon_core::Result;
-    /// # Result::<()>::Ok(())
-    /// ```
     fn try_from(params: crate::params::UpdateStep) -> Result<Self, Self::Error> {
-        // Use the existing validation method from UpdateStep
         let (validated_status, validated_result) = params.validate()?;
 
         Ok(Self {

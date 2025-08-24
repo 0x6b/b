@@ -59,12 +59,8 @@ impl fmt::Display for Plan {
     }
 }
 
-impl Step {
-    /// Format the step using the clean, compact display format.
-    ///
-    /// This uses the same format whether the step is displayed standalone
-    /// or within a plan context.
-    fn fmt_step(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for Step {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
             "### {}. {} ({})",
@@ -106,12 +102,6 @@ impl Step {
         }
 
         Ok(())
-    }
-}
-
-impl fmt::Display for Step {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_step(f)
     }
 }
 

@@ -1,7 +1,4 @@
 //! Status and confirmation message types for operation feedback.
-//!
-//! This module provides types for displaying operation status messages,
-//! success confirmations, and error notifications with consistent formatting.
 
 use std::fmt;
 
@@ -34,8 +31,7 @@ impl OperationStatus {
 
 impl fmt::Display for OperationStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let prefix = if self.success { "Success:" } else { "Error:" };
-        writeln!(f, "{} {}", prefix, self.message)
+        writeln!(f, "{} {}", if self.success { "Success:" } else { "Error:" }, self.message)
     }
 }
 
@@ -46,9 +42,9 @@ mod tests {
     #[test]
     fn test_operation_status_display() {
         let success = OperationStatus::success("Operation completed".to_string());
-        assert!(format!("{}", success).contains("Success:"));
+        assert!(format!("{success}").contains("Success:"));
 
         let failure = OperationStatus::failure("Operation failed".to_string());
-        assert!(format!("{}", failure).contains("Error:"));
+        assert!(format!("{failure}").contains("Error:"));
     }
 }

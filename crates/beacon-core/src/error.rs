@@ -1,5 +1,6 @@
 //! Error types for the planner library.
 
+use std::fmt;
 use std::path::PathBuf;
 
 use thiserror::Error;
@@ -14,37 +15,30 @@ pub enum PlannerError {
         #[source]
         source: rusqlite::Error,
     },
-
     /// Plan not found for the given ID
     #[error("Plan with ID {id} not found")]
     PlanNotFound { id: u64 },
-
     /// Step not found for the given ID
     #[error("Step with ID {id} not found")]
     StepNotFound { id: u64 },
-
     /// File system operation errors
     #[error("File system error at path '{path}': {source}")]
     FileSystem {
         path: PathBuf,
         source: std::io::Error,
     },
-
     /// XDG directory specification errors
     #[error("XDG directory error: {0}")]
     XdgDirectory(String),
-
     /// Invalid input validation errors
     #[error("Invalid input for field '{field}': {reason}")]
     InvalidInput { field: String, reason: String },
-
     /// Serialization/deserialization errors
     #[error("Serialization error: {source}")]
     Serialization {
         #[from]
         source: serde_json::Error,
     },
-
     /// Configuration errors
     #[error("Configuration error: {message}")]
     Configuration { message: String },
@@ -117,12 +111,12 @@ pub trait ResultExt<T, E> {
     /// Add context to any error type, converting to PlannerError.
     fn with_context<C>(self, context: C) -> Result<T>
     where
-        C: std::fmt::Display + Send + Sync + 'static;
+        C: fmt::Display + Send + Sync + 'static;
 
     /// Add lazy context to any error type, converting to PlannerError.
     fn with_context_lazy<C, F>(self, f: F) -> Result<T>
     where
-        C: std::fmt::Display + Send + Sync + 'static,
+        C: fmt::Display + Send + Sync + 'static,
         F: FnOnce() -> C;
 }
 
@@ -144,7 +138,7 @@ where
 {
     fn with_context<C>(self, context: C) -> Result<T>
     where
-        C: std::fmt::Display + Send + Sync + 'static,
+        C: fmt::Display + Send + Sync + 'static,
     {
         self.map_err(|e| PlannerError::Configuration {
             message: format!("{}: {}", context, e),
@@ -153,7 +147,7 @@ where
 
     fn with_context_lazy<C, F>(self, f: F) -> Result<T>
     where
-        C: std::fmt::Display + Send + Sync + 'static,
+        C: fmt::Display + Send + Sync + 'static,
         F: FnOnce() -> C,
     {
         self.map_err(|e| PlannerError::Configuration {

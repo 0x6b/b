@@ -3,71 +3,6 @@
 //! This module contains shared parameter structures that can be used across
 //! different interfaces (CLI, MCP, etc.) without framework-specific derives or
 //! dependencies.
-//!
-//! ```ignore
-//! // In CLI module
-//! #[derive(Args)]
-//! pub struct CreatePlanArgs {
-//!     pub title: String,
-//!     // ... clap-specific attributes
-//! }
-//!
-//! impl Into<CreatePlan> for CreatePlanArgs {
-//!     fn into(self) -> CreatePlan {
-//!         CreatePlan {
-//!             title: self.title,
-//!             description: self.description,
-//!             directory: self.directory,
-//!         }
-//!     }
-//! }
-//!
-//! // In MCP module  
-//! #[derive(Deserialize, JsonSchema)]
-//! #[serde(transparent)]
-//! struct CreatePlanRequest(beacon_core::params::CreatePlan);
-//! ```
-//!
-//! ### Adding New Parameters
-//!
-//! To add a new parameter structure:
-//!
-//! 1. **Define core structure** in this module with minimal dependencies
-//! 2. **Add interface wrappers** in CLI/MCP modules with appropriate derives
-//! 3. **Implement conversions** between wrapper and core types
-//! 4. **Update planner methods** to accept core parameter types
-//!
-//! Example:
-//! ```ignore
-//! // 1. In beacon-core/src/params.rs
-//! #[derive(Debug, Clone)]
-//! pub struct NewOperation {
-//!     pub field1: String,
-//!     pub field2: Option<i32>,
-//! }
-//!
-//! // 2. In beacon-cli/src/cli.rs  
-//! #[derive(Args)]
-//! pub struct NewOperationArgs {
-//!     pub field1: String,
-//!     #[arg(short, long)]
-//!     pub field2: Option<i32>,
-//! }
-//!
-//! impl Into<NewOperation> for NewOperationArgs {
-//!     fn into(self) -> NewOperation {
-//!         NewOperation {
-//!             field1: self.field1,
-//!             field2: self.field2,
-//!         }
-//!     }
-//! }
-//!
-//! // 3. In beacon-cli/src/mcp.rs
-//! #[derive(Deserialize, JsonSchema)]
-//! #[serde(transparent)]
-//! struct NewOperationRequest(beacon_core::params::NewOperation);
-//! ```
 
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
@@ -232,29 +167,6 @@ impl UpdateStep {
     /// * `PlannerError::InvalidInput` - When status string is invalid
     /// * `PlannerError::InvalidInput` - When result is missing for 'done'
     ///   status
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use beacon_core::params::UpdateStep;
-    ///
-    /// // Valid update with status change to done
-    /// let mut params = UpdateStep::default();
-    /// params.id = 1;
-    /// params.status = Some("done".to_string());
-    /// params.result = Some("Completed successfully".to_string());
-    /// let (status, result) = params.validate()?;
-    ///
-    /// // Invalid - missing result for done status
-    /// let mut params = UpdateStep::default();
-    /// params.id = 1;
-    /// params.status = Some("done".to_string());
-    /// params.result = None;
-    /// let error = params.validate();
-    /// assert!(error.is_err());
-    /// # use beacon_core::Result;
-    /// # Result::<()>::Ok(())
-    /// ```
     pub fn validate(&self) -> crate::Result<(Option<crate::models::StepStatus>, Option<String>)> {
         use std::str::FromStr;
 

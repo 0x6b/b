@@ -9,21 +9,16 @@ use super::PlanStatus;
 pub struct PlanFilter {
     /// Filter by plan title (case-insensitive partial match)
     pub title_contains: Option<String>,
-
     /// Filter by directory path (exact match or prefix match)
     pub directory: Option<String>,
-
     /// Filter by creation date range
     pub created_after: Option<Timestamp>,
     pub created_before: Option<Timestamp>,
-
     /// Filter by completion status
     pub completion_status: Option<CompletionFilter>,
-
     /// Filter by plan status (active/archived)
     /// If None, defaults to showing only active plans
     pub status: Option<PlanStatus>,
-
     /// Show all plans regardless of status
     pub include_archived: bool,
 }
@@ -76,10 +71,8 @@ impl Default for PlanFilter {
 pub enum CompletionFilter {
     /// Plans with all steps completed
     Complete,
-
     /// Plans with at least one incomplete step
     Incomplete,
-
     /// Plans with no steps
     Empty,
 }

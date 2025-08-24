@@ -11,7 +11,6 @@ pub enum PlanStatus {
     /// Plan is active and visible
     #[default]
     Active,
-
     /// Plan is archived and hidden from normal views
     Archived,
 }
@@ -44,10 +43,8 @@ impl PlanStatus {
 pub enum StepStatus {
     /// Step is pending completion
     Todo,
-
     /// Step is being worked on
     InProgress,
-
     /// Step has been completed
     Done,
 }
@@ -85,16 +82,6 @@ impl StepStatus {
     /// - `✓ Done` - Checkmark for completed steps
     /// - `➤ In Progress` - Arrow for active steps
     /// - `○ Todo` - Circle for pending steps
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use beacon_core::models::StepStatus;
-    ///
-    /// assert_eq!(StepStatus::Done.with_icon(), "✓ Done");
-    /// assert_eq!(StepStatus::InProgress.with_icon(), "➤ In Progress");
-    /// assert_eq!(StepStatus::Todo.with_icon(), "○ Todo");
-    /// ```
     pub fn with_icon(&self) -> &'static str {
         match self {
             StepStatus::Done => "✓ Done",

@@ -7,10 +7,10 @@
 use std::{future::Future, sync::Arc};
 
 use anyhow::Result;
-use beacon_core::Planner;
+use beacon_core::{Planner, PlannerError};
 use log::{debug, error, info};
 use rmcp::{
-    ErrorData as McpError, RoleServer, ServerHandler,
+    ErrorData as McpError, ErrorData, RoleServer, ServerHandler,
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
         GetPromptRequestParam, GetPromptResult, Implementation, ListPromptsResult,
@@ -24,7 +24,7 @@ use tokio::{
     sync::Mutex,
 };
 
-pub mod errors;
+// pub mod errors;
 pub mod handlers;
 pub mod prompts;
 
@@ -301,4 +301,9 @@ pub async fn run_stdio_server(server: BeaconMcpServer) -> Result<()> {
 
     info!("MCP server shutdown complete");
     Ok(())
+}
+
+/// Helper to convert planner errors to MCP errors
+pub fn to_mcp_error(message: &str, error: &PlannerError) -> ErrorData {
+    ErrorData::internal_error(format!("{}: {}", message, error), None)
 }

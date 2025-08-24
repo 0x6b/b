@@ -3,7 +3,7 @@
 //! This module provides wrapper types that format collections of domain objects
 //! with consistent structure and empty collection handling.
 
-use std::{fmt, ops::Index};
+use std::{fmt, ops::Deref};
 
 use crate::models::{PlanSummary, Step};
 
@@ -12,82 +12,13 @@ use crate::models::{PlanSummary, Step};
 /// This provides clean Display formatting for plan collections without title
 /// handling, allowing consumers to handle titles separately. Handles empty
 /// collections gracefully.
-///
-/// # Examples
-///
-/// ```rust
-/// use beacon_core::{
-///     display::PlanSummaries,
-///     models::{PlanStatus, PlanSummary},
-/// };
-/// use jiff::Timestamp;
-///
-/// let plan = PlanSummary {
-///     id: 1,
-///     title: "My Project".to_string(),
-///     description: Some("A test project".to_string()),
-///     status: PlanStatus::Active,
-///     directory: Some("/home/user/project".to_string()),
-///     created_at: Timestamp::now(),
-///     updated_at: Timestamp::now(),
-///     total_steps: 5,
-///     completed_steps: 2,
-///     pending_steps: 3,
-/// };
-/// let plans = vec![plan];
-///
-/// // Format a collection of plans
-/// let summaries = PlanSummaries(plans);
-/// let output = format!("{}", summaries);
-/// assert!(output.contains("My Project"));
-/// ```
 pub struct PlanSummaries(pub Vec<PlanSummary>);
 
-impl PlanSummaries {
-    /// Check if the collection is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl Deref for PlanSummaries {
+    type Target = Vec<PlanSummary>;
 
-    /// Get the number of plan summaries in the collection.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Get a reference to the plan summary at the given index.
-    pub fn get(&self, index: usize) -> Option<&PlanSummary> {
-        self.0.get(index)
-    }
-
-    /// Get an iterator over the plan summaries.
-    pub fn iter(&self) -> std::slice::Iter<'_, PlanSummary> {
-        self.0.iter()
-    }
-}
-
-impl Index<usize> for PlanSummaries {
-    type Output = PlanSummary;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IntoIterator for PlanSummaries {
-    type Item = PlanSummary;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a PlanSummaries {
-    type Item = &'a PlanSummary;
-    type IntoIter = std::slice::Iter<'a, PlanSummary>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -97,7 +28,7 @@ impl fmt::Display for PlanSummaries {
             writeln!(f, "No plans found.")
         } else {
             for plan in &self.0 {
-                write!(f, "{}", plan)?;
+                write!(f, "{plan}")?;
             }
             Ok(())
         }
@@ -109,80 +40,13 @@ impl fmt::Display for PlanSummaries {
 /// This wrapper provides Display implementation for collections of steps
 /// without requiring title formatting logic. It handles empty collections
 /// gracefully and formats each step using the existing Step Display trait.
-///
-/// # Examples
-///
-/// ```rust
-/// use beacon_core::{
-///     display::Steps,
-///     models::{Step, StepStatus},
-/// };
-/// use jiff::Timestamp;
-///
-/// // Create a collection of steps
-/// let step = Step {
-///     id: 1,
-///     plan_id: 42,
-///     title: "Example step".to_string(),
-///     description: None,
-///     acceptance_criteria: None,
-///     references: vec![],
-///     status: StepStatus::Todo,
-///     result: None,
-///     order: 0,
-///     created_at: Timestamp::now(),
-///     updated_at: Timestamp::now(),
-/// };
-/// let steps = Steps(vec![step]);
-/// println!("{}", steps);
-/// ```
 pub struct Steps(pub Vec<Step>);
 
-impl Steps {
-    /// Check if the collection is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl Deref for Steps {
+    type Target = Vec<Step>;
 
-    /// Get the number of steps in the collection.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Get a reference to the step at the given index.
-    pub fn get(&self, index: usize) -> Option<&Step> {
-        self.0.get(index)
-    }
-
-    /// Get an iterator over the steps.
-    pub fn iter(&self) -> std::slice::Iter<'_, Step> {
-        self.0.iter()
-    }
-}
-
-impl Index<usize> for Steps {
-    type Output = Step;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IntoIterator for Steps {
-    type Item = Step;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a Steps {
-    type Item = &'a Step;
-    type IntoIter = std::slice::Iter<'a, Step>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

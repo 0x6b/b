@@ -23,7 +23,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::Mutex;
 
-use super::{errors::to_mcp_error, prompts::PROMPT_TEMPLATES};
+use super::{prompts::PROMPT_TEMPLATES, to_mcp_error};
 
 // ============================================================================
 // Generic Parameter Wrapper Implementation
