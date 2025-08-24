@@ -144,9 +144,23 @@ pub struct UpdateStep {
     /// - Updating other fields without changing status
     /// - Creating a new step (steps always start as 'todo')
     ///
-    /// Example: "Implemented user authentication using JWT tokens with
-    /// refresh token rotation. Added middleware for route protection and
-    /// created login/logout endpoints. All tests passing."
+    /// Format using Markdown with **bold headers** and detailed bullet points:
+    /// - What was created/modified (with file paths)
+    /// - Technical implementation details
+    /// - Preserved functionality and behavior  
+    /// - Validation results (tests, builds, etc.)
+    ///
+    /// Example: "Successfully extracted watch functionality to watch.rs:
+    ///
+    /// **Created module:** `/path/to/watch.rs` containing:
+    /// - Complete watch method implementation with file system monitoring
+    /// - File event handling for Created, Modified, and Deleted events
+    /// - Async task spawning for file re-indexing
+    ///
+    /// **Validation results:**
+    /// - All 344 tests pass across entire codebase
+    /// - No clippy warnings
+    /// - Release build successful"
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub result: Option<String>,
 }

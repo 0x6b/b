@@ -366,14 +366,21 @@ impl McpHandlers {
 
     #[tool(
         name = "update_step",
-        description = "Modify an existing step's properties. Use step ID to identify. Can update: status ('todo', 'inprogress', or 'done'), title, description,        acceptance_criteria, and references.
+        description = "Modify an existing step's properties. Use step ID to identify. Can update: status ('todo', 'inprogress', or 'done'), title, description, acceptance_criteria, and references.
         
-        IMPORTANT: When changing status to 'done', you MUST provide a 'result' field describing what was actually accomplished, technically in detail. The result will be permanently recorded and shown when viewing completed steps. The result field is ignored for all other status values. Example for marking as done:
+        IMPORTANT: When changing status to 'done', you MUST provide a 'result' field describing what was actually accomplished, technically in detail, with proper Markdown format. The result will be permanently recorded and shown when viewing completed steps. The result field is ignored for all other status values. 
+        
+        Format the result with clear sections using **bold headers** and detailed bullet points describing:
+        - What was created/modified (with file paths)
+        - Technical implementation details
+        - Preserved functionality and behavior
+        - Validation results (tests, builds, etc.)
+        
+        Example for marking as done:
         {
           \"id\": 5,
           \"status\": \"done\",
-          \"result\": \"Configured CI/CD pipeline with GitHub Actions. Added workflows for testing, 
-                      linting, and deployment to staging. All checks passing on main branch.\"
+          \"result\": \"Successfully extracted watch functionality to watch.rs:\\n\\n**Created module:** `/path/to/watch.rs` containing:\\n- Complete watch method implementation with file system monitoring\\n- File event handling for Created, Modified, and Deleted events\\n- Async task spawning for file re-indexing\\n\\n**Validation results:**\\n- All 344 tests pass across entire codebase\\n- No clippy warnings\\n- Release build successful\"
         }"
     )]
     pub async fn update_step(&self, Parameters(params): Parameters<UpdateStep>) -> McpResult {
