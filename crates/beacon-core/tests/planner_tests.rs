@@ -11,6 +11,7 @@ fn create_test_environment() -> (TempDir, PathBuf) {
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)]
 async fn test_complete_plan_workflow() {
     let (_temp_dir, db_path) = create_test_environment();
 
