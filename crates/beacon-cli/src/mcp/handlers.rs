@@ -1,6 +1,6 @@
 //! MCP tool handlers implementation
 
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use beacon_core::{
     Planner,
@@ -9,7 +9,7 @@ use beacon_core::{
 };
 use log::debug;
 use rmcp::{
-    ErrorData as McpError, RoleServer,
+    ErrorData, ErrorData as McpError, RoleServer,
     handler::server::tool::Parameters,
     model::{
         CallToolResult, Content, GetPromptRequestParam, GetPromptResult, ListPromptsResult,
@@ -17,7 +17,6 @@ use rmcp::{
         PromptMessageRole,
     },
     service::RequestContext,
-    tool,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -75,7 +74,6 @@ where
 // Type aliases for cleaner usage in function signatures
 pub type Id = McpParams<core::Id>;
 pub type CreatePlan = McpParams<core::CreatePlan>;
-pub type DeletePlan = McpParams<core::DeletePlan>;
 pub type ListPlans = McpParams<core::ListPlans>;
 pub type SearchPlans = McpParams<core::SearchPlans>;
 pub type StepCreate = McpParams<core::StepCreate>;
@@ -95,10 +93,6 @@ impl McpHandlers {
         Self { planner }
     }
 
-    #[tool(
-        name = "create_plan",
-        description = "Create a new task plan to organize work. Provide a clear title (required), optional detailed description for context, and optional directory to associate with specific project location. Returns the new plan ID for adding steps."
-    )]
     pub async fn create_plan(&self, Parameters(params): Parameters<CreatePlan>) -> McpResult {
         debug!("create_plan: {:?}", params);
 
@@ -116,10 +110,6 @@ impl McpHandlers {
         )]))
     }
 
-    #[tool(
-        name = "list_plans",
-        description = "List all task plans. Use archived=false (default) for active plans you're working on, or archived=true to see completed/hidden plans. Returns formatted list with IDs, titles, descriptions, and directories."
-    )]
     pub async fn list_plans(&self, Parameters(params): Parameters<ListPlans>) -> McpResult {
         debug!("list_plans: {:?}", params);
 
@@ -146,10 +136,6 @@ impl McpHandlers {
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 
-    #[tool(
-        name = "show_plan",
-        description = "Display complete details of a specific plan including all its steps, their status (todo/done), descriptions, and acceptance criteria. Use the plan ID to retrieve. Essential for understanding project scope and progress."
-    )]
     pub async fn show_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("show_plan: {:?}", params);
 
@@ -172,10 +158,6 @@ impl McpHandlers {
         )]))
     }
 
-    #[tool(
-        name = "archive_plan",
-        description = "Archive a completed or inactive plan to hide it from the active list. Archived plans are preserved and can be restored later with unarchive_plan. Use when a project is finished or temporarily on hold."
-    )]
     pub async fn archive_plan(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("archive_plan: {:?}", params);
 
@@ -200,11 +182,7 @@ impl McpHandlers {
             result.to_string(),
         )]))
     }
-    
-    #[tool(
-        name = "search_plans",
-        description = "Find all plans associated with a specific directory path. Use archived=false (default) for active plans you're working on, or archived=true to see completed/hidden plans for the directory. Useful for discovering existing plans in a project folder or organizing plans by location."
-    )]
+
     pub async fn search_plans(&self, Parameters(params): Parameters<SearchPlans>) -> McpResult {
         debug!("search_plans: {:?}", params);
 
@@ -242,10 +220,6 @@ impl McpHandlers {
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 
-    #[tool(
-        name = "add_step",
-        description = "Add a new step to an existing plan. Requires plan_id and title. Optionally include: description (detailed info), acceptance_criteria (completion requirements), and references (URLs/files). Steps start with 'todo' status and are added at the end of the plan."
-    )]
     pub async fn add_step(&self, Parameters(params): Parameters<StepCreate>) -> McpResult {
         debug!("add_step: {:?}", params);
 
@@ -262,10 +236,6 @@ impl McpHandlers {
         )]))
     }
 
-    #[tool(
-        name = "insert_step",
-        description = "Insert a new step at a specific position in a plan's step order. Position is 0-indexed (0 = first position). All existing steps at or after this position will be shifted down. Useful for adding prerequisite tasks or reorganizing workflow."
-    )]
     pub async fn insert_step(&self, Parameters(params): Parameters<InsertStep>) -> McpResult {
         debug!("insert_step: {:?}", params);
 
@@ -282,10 +252,6 @@ impl McpHandlers {
         )]))
     }
 
-    #[tool(
-        name = "swap_steps",
-        description = "Swap the order of two steps within the same plan. This is useful for reordering tasks without having to delete and recreate them. Both steps must belong to the same plan. The operation preserves all step properties and only changes their order."
-    )]
     pub async fn swap_steps(&self, Parameters(params): Parameters<SwapSteps>) -> McpResult {
         debug!("swap_steps: {:?}", params);
 
@@ -306,25 +272,6 @@ impl McpHandlers {
         )]))
     }
 
-    #[tool(
-        name = "update_step",
-        description = "Modify an existing step's properties. Use step ID to identify. Can update: status ('todo', 'inprogress', or 'done'), title, description, acceptance_criteria, and references.
-        
-        IMPORTANT: When changing status to 'done', you MUST provide a 'result' field describing what was actually accomplished, technically in detail, with proper Markdown format. The result will be permanently recorded and shown when viewing completed steps. The result field is ignored for all other status values. 
-        
-        Format the result with clear sections using **bold headers** and detailed bullet points describing:
-        - What was created/modified (with file paths)
-        - Technical implementation details
-        - Preserved functionality and behavior
-        - Validation results (tests, builds, etc.)
-        
-        Example for marking as done:
-        {
-          \"id\": 5,
-          \"status\": \"done\",
-          \"result\": \"Successfully extracted watch functionality to watch.rs:\\n\\n**Created module:** `/path/to/watch.rs` containing:\\n- Complete watch method implementation with file system monitoring\\n- File event handling for Created, Modified, and Deleted events\\n- Async task spawning for file re-indexing\\n\\n**Validation results:**\\n- All 344 tests pass across entire codebase\\n- No clippy warnings\\n- Release build successful\"
-        }"
-    )]
     pub async fn update_step(&self, Parameters(params): Parameters<UpdateStep>) -> McpResult {
         debug!("update_step: {:?}", params);
 
@@ -371,10 +318,6 @@ impl McpHandlers {
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 
-    #[tool(
-        name = "show_step",
-        description = "View detailed information about a specific step including its status, timestamps, description, acceptance criteria, and references. Use when you need to focus on a single step's details rather than the whole plan."
-    )]
     pub async fn show_step(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("show_step: {:?}", params);
 
@@ -396,10 +339,6 @@ impl McpHandlers {
         )]))
     }
 
-    #[tool(
-        name = "claim_step",
-        description = "Atomically claim a step by transitioning it from 'todo' to 'inprogress' status. This prevents multiple agents from working on the same task simultaneously. Returns success if the step was claimed, or indicates if the step was already claimed or completed."
-    )]
     pub async fn claim_step(&self, Parameters(params): Parameters<Id>) -> McpResult {
         debug!("claim_step: {:?}", params);
 
@@ -543,6 +482,3 @@ impl McpHandlers {
         })
     }
 }
-
-// Missing import - add ErrorData
-use rmcp::ErrorData;
