@@ -41,6 +41,7 @@ schemars = { workspace = true }
 
 # Terminal rendering
 termimad = { workspace = true }
+pager = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

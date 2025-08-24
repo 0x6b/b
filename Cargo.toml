@@ -40,6 +40,7 @@ schemars = "1.0.4"
 
 # Terminal rendering
 termimad = "0.33.0"
+pager = "0.16.1"
 
 [profile.release]
 opt-level = 3

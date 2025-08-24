@@ -23,6 +23,10 @@ pub struct Args {
     #[arg(long, global = true)]
     pub no_color: bool,
 
+    /// Disable pager for output
+    #[arg(long, global = true)]
+    pub no_pager: bool,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }

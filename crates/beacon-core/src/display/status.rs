@@ -31,7 +31,12 @@ impl OperationStatus {
 
 impl fmt::Display for OperationStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{} {}", if self.success { "Success:" } else { "Error:" }, self.message)
+        writeln!(
+            f,
+            "{} {}",
+            if self.success { "Success:" } else { "Error:" },
+            self.message
+        )
     }
 }
 

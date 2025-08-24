@@ -1,7 +1,6 @@
 //! Error types for the planner library.
 
-use std::fmt;
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 
 use thiserror::Error;
 
