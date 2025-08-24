@@ -60,7 +60,7 @@ pub mod planner;
 // Re-export commonly used types
 pub use db::Database;
 pub use display::{
-    format_plan_list, format_step_list, CreateResult, DeleteResult, OperationStatus, UpdateResult,
+    CreateResult, DeleteResult, OperationStatus, PlanSummaries, Steps, UpdateResult,
 };
 pub use error::{PlannerError, Result};
 pub use models::{
