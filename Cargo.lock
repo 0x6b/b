@@ -158,13 +158,13 @@ dependencies = [
  "tempfile",
  "termimad",
  "tokio",
- "tracing",
 ]
 
 [[package]]
 name = "beacon-core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "jiff",
  "rusqlite",
  "schemars",

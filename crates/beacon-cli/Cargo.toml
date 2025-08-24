@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 description = "A simple task planning tool"
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "beacon"
 path = "src/main.rs"
@@ -34,7 +37,6 @@ env_logger = { workspace = true }
 
 # MCP server
 rmcp = { workspace = true }
-tracing = { workspace = true }
 schemars = { workspace = true }
 
 # Terminal rendering

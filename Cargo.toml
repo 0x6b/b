@@ -28,7 +28,6 @@ xdg = "3.0.0"
 # Logging
 env_logger = "0.11.8"
 log = "0.4.27"
-tracing = "0.1"
 
 # Testing dependencies
 tempfile = "3.21.0"
@@ -54,3 +53,35 @@ opt-level = 0
 
 [profile.test]
 opt-level = 2
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_imports = "warn"
+unused_variables = "warn"
+dead_code = "warn"
+unused_must_use = "warn"
+
+[workspace.lints.clippy]
+# Complexity lints
+cognitive_complexity = "warn"
+type_complexity = "warn"
+too_many_arguments = "warn"
+too_many_lines = "warn"
+
+# Correctness lints
+redundant_closure = "warn"
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+unnecessary_wraps = "warn"
+
+# Performance lints
+inefficient_to_string = "warn"
+large_types_passed_by_value = "warn"
+
+# Style lints
+explicit_iter_loop = "warn"
+manual_let_else = "warn"
+inconsistent_struct_constructor = "warn"
+
+# Pedantic lints (more strict)
+missing_panics_doc = "warn"

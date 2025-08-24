@@ -7,10 +7,14 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+anyhow = { workspace = true }
 rusqlite = { workspace = true }
 jiff = { workspace = true }
 xdg = { workspace = true }

@@ -19,7 +19,7 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::Mutex;
-use tracing::debug;
+use log::debug;
 
 use super::{errors::to_mcp_error, prompts::get_prompt_templates};
 
@@ -104,7 +104,7 @@ impl McpHandlers {
         let plan = planner
             .create_plan_result(inner_params)
             .await
-            .map_err(|e| to_mcp_error("Failed to create plan", e))?;
+            .map_err(|e| to_mcp_error("Failed to create plan", &e))?;
 
         let result = CreateResult::new(plan);
         Ok(CallToolResult::success(vec![Content::text(
@@ -124,7 +124,7 @@ impl McpHandlers {
         let plan_summaries = planner
             .list_plans_summary(inner_params)
             .await
-            .map_err(|e| to_mcp_error("Failed to list plans", e))?;
+            .map_err(|e| to_mcp_error("Failed to list plans", &e))?;
 
         let title = if plan_summaries.is_empty() {
             if inner_params.archived {
@@ -154,7 +154,7 @@ impl McpHandlers {
         let plan = planner
             .show_plan_with_steps(inner_params)
             .await
-            .map_err(|e| to_mcp_error("Failed to get plan", e))?
+            .map_err(|e| to_mcp_error("Failed to get plan", &e))?
             .ok_or_else(|| {
                 ErrorData::internal_error(
                     format!("Plan with ID {} not found", inner_params.id),
@@ -379,7 +379,7 @@ impl McpHandlers {
         let _updated_step = planner
             .update_step_validated(inner_params)
             .await
-            .map_err(|e| to_mcp_error("Failed to update step", e))?
+            .map_err(|e| to_mcp_error("Failed to update step", &e))?
             .ok_or_else(|| {
                 ErrorData::internal_error(
                     format!("Step with ID {} not found", inner_params.id),
