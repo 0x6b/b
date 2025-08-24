@@ -3,7 +3,7 @@
 mod common;
 
 use beacon_core::params::{
-    CreatePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
+    CreatePlan, DeletePlan, Id, InsertStep, ListPlans, SearchPlans, StepCreate, SwapSteps, UpdateStep,
 };
 
 #[tokio::test]
@@ -62,10 +62,12 @@ async fn test_list_plans_summary_archived() {
         .await
         .expect("Failed to create plan");
 
-    planner
+    let archived_plan = planner
         .archive_plan(&Id { id: plan.id })
         .await
-        .expect("Failed to archive plan");
+        .expect("Failed to archive plan")
+        .expect("Plan should exist");
+    assert_eq!(archived_plan.id, plan.id);
 
     // Test list_plans_summary for archived plans
     let summaries = planner
@@ -147,7 +149,7 @@ async fn test_show_plan_with_steps_not_found() {
 }
 
 #[tokio::test]
-async fn test_archive_plan_with_confirmation() {
+async fn test_archive_plan() {
     let (_temp_dir, planner) = common::create_test_planner().await;
 
     // Create a plan
@@ -160,11 +162,11 @@ async fn test_archive_plan_with_confirmation() {
         .await
         .expect("Failed to create plan");
 
-    // Test archive_plan_with_confirmation
+    // Test archive_plan
     let archived_plan = planner
-        .archive_plan_with_confirmation(&Id { id: plan.id })
+        .archive_plan(&Id { id: plan.id })
         .await
-        .expect("Failed to archive plan with confirmation")
+        .expect("Failed to archive plan")
         .expect("Plan should exist");
 
     assert_eq!(archived_plan.title, "To Archive");
@@ -179,12 +181,12 @@ async fn test_archive_plan_with_confirmation() {
 }
 
 #[tokio::test]
-async fn test_archive_plan_with_confirmation_not_found() {
+async fn test_archive_plan_not_found() {
     let (_temp_dir, planner) = common::create_test_planner().await;
 
     // Test non-existent plan
     let result = planner
-        .archive_plan_with_confirmation(&Id { id: 999 })
+        .archive_plan(&Id { id: 999 })
         .await
         .expect("Should not fail on non-existent plan");
 
@@ -192,7 +194,7 @@ async fn test_archive_plan_with_confirmation_not_found() {
 }
 
 #[tokio::test]
-async fn test_unarchive_plan_with_confirmation() {
+async fn test_unarchive_plan() {
     let (_temp_dir, planner) = common::create_test_planner().await;
 
     // Create and archive a plan
@@ -205,16 +207,18 @@ async fn test_unarchive_plan_with_confirmation() {
         .await
         .expect("Failed to create plan");
 
-    planner
+    let archived_plan = planner
         .archive_plan(&Id { id: plan.id })
         .await
-        .expect("Failed to archive plan");
+        .expect("Failed to archive plan")
+        .expect("Plan should exist");
+    assert_eq!(archived_plan.id, plan.id);
 
-    // Test unarchive_plan_with_confirmation
+    // Test unarchive_plan
     let unarchived_plan = planner
-        .unarchive_plan_with_confirmation(&Id { id: plan.id })
+        .unarchive_plan(&Id { id: plan.id })
         .await
-        .expect("Failed to unarchive plan with confirmation")
+        .expect("Failed to unarchive plan")
         .expect("Plan should exist");
 
     assert_eq!(unarchived_plan.title, "To Unarchive");
@@ -253,11 +257,11 @@ async fn test_delete_plan_with_confirmation() {
         .await
         .expect("Failed to add step");
 
-    // Test delete_plan_with_confirmation
+    // Test delete_plan
     let deleted_plan = planner
-        .delete_plan_with_confirmation(&Id { id: plan.id })
+        .delete_plan(&DeletePlan { id: plan.id, confirmed: true })
         .await
-        .expect("Failed to delete plan with confirmation")
+        .expect("Failed to delete plan")
         .expect("Plan should exist");
 
     assert_eq!(deleted_plan.title, "To Delete");
@@ -275,6 +279,38 @@ async fn test_delete_plan_with_confirmation() {
         .await
         .expect("Failed to get steps");
     assert_eq!(steps.len(), 0);
+}
+
+#[tokio::test]
+async fn test_delete_plan_confirmation_required() {
+    let (_temp_dir, planner) = common::create_test_planner().await;
+
+    // Create a plan
+    let plan = planner
+        .create_plan(&CreatePlan {
+            title: "Test Plan".to_string(),
+            description: Some("Test description".to_string()),
+            directory: None,
+        })
+        .await
+        .expect("Failed to create plan");
+
+    // Test delete_plan without confirmation - should fail
+    let result = planner
+        .delete_plan(&DeletePlan { id: plan.id, confirmed: false })
+        .await;
+    
+    assert!(result.is_err());
+    let error_msg = format!("{}", result.unwrap_err());
+    assert!(error_msg.contains("confirmation"));
+    assert!(error_msg.contains("confirmed"));
+
+    // Verify plan still exists
+    let retrieved_plan = planner
+        .get_plan(&Id { id: plan.id })
+        .await
+        .expect("Failed to get plan");
+    assert!(retrieved_plan.is_some());
 }
 
 #[tokio::test]
@@ -342,10 +378,12 @@ async fn test_search_plans_summary_archived() {
         .await
         .expect("Failed to create plan");
 
-    planner
+    let archived_plan = planner
         .archive_plan(&Id { id: plan.id })
         .await
-        .expect("Failed to archive plan");
+        .expect("Failed to archive plan")
+        .expect("Plan should exist");
+    assert_eq!(archived_plan.id, plan.id);
 
     // Test search for archived plans
     let summaries = planner
@@ -473,7 +511,7 @@ async fn test_claim_step_atomically() {
         .await
         .expect("Failed to claim step");
 
-    assert!(claimed, "Step should be successfully claimed");
+    assert!(claimed.is_some(), "Step should be successfully claimed");
 
     // Verify step is in progress
     let retrieved_step = planner
@@ -491,7 +529,7 @@ async fn test_claim_step_atomically() {
         .await
         .expect("Failed to attempt claiming again");
 
-    assert!(!claimed_again, "Step should not be claimed again");
+    assert!(claimed_again.is_none(), "Step should not be claimed again");
 }
 
 #[tokio::test]

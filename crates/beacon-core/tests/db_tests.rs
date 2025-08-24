@@ -137,7 +137,7 @@ fn test_claim_step() {
 
     // Test claiming a todo step - should succeed
     let claimed = db.claim_step(step.id).expect("Failed to claim step");
-    assert!(claimed, "Should successfully claim a todo step");
+    assert!(claimed.is_some(), "Should successfully claim a todo step");
 
     // Verify the step is now in progress
     let steps = db.get_steps(plan.id).expect("Failed to get steps");
@@ -146,7 +146,7 @@ fn test_claim_step() {
     // Test claiming the same step again - should fail
     let claimed_again = db.claim_step(step.id).expect("Failed to claim step");
     assert!(
-        !claimed_again,
+        claimed_again.is_none(),
         "Should not be able to claim an in-progress step"
     );
 
@@ -161,13 +161,13 @@ fn test_claim_step() {
     )
     .expect("Failed to update status");
     let claimed_done = db.claim_step(step.id).expect("Failed to claim step");
-    assert!(!claimed_done, "Should not be able to claim a done step");
+    assert!(claimed_done.is_none(), "Should not be able to claim a done step");
 
-    // Test claiming non-existent step - should error
-    let result = db.claim_step(999);
+    // Test claiming non-existent step - should return None
+    let result = db.claim_step(999).expect("Failed to query step");
     assert!(
-        result.is_err(),
-        "Should error when claiming non-existent step"
+        result.is_none(),
+        "Should return None when claiming non-existent step"
     );
 }
 

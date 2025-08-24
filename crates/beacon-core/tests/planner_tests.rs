@@ -78,7 +78,7 @@ async fn test_complete_plan_workflow() {
         .claim_step(&beacon_core::params::Id { id: step2.id })
         .await
         .expect("Failed to claim step");
-    assert!(claimed, "Should successfully claim step2");
+    assert!(claimed.is_some(), "Should successfully claim step2");
 
     // Verify step is in progress
     let steps_after_claim = planner
@@ -223,8 +223,9 @@ async fn test_error_handling_invalid_operations() {
 
     let result = planner
         .archive_plan(&beacon_core::params::Id { id: 999 })
-        .await;
-    assert!(result.is_err());
+        .await
+        .expect("archive_plan should not error even for non-existent plans");
+    assert!(result.is_none(), "Should return None for non-existent plan");
 
     // Test operations on non-existent step
     let result = planner
@@ -406,10 +407,12 @@ async fn test_plan_archiving() {
         .expect("Failed to add step");
 
     // Archive the plan
-    planner
+    let archived_plan = planner
         .archive_plan(&beacon_core::params::Id { id: plan.id })
         .await
-        .expect("Failed to archive plan");
+        .expect("Failed to archive plan")
+        .expect("Plan should exist");
+    assert_eq!(archived_plan.id, plan.id);
 
     // Verify plan is not visible in normal list
     let active_plans = planner
