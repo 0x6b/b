@@ -263,9 +263,9 @@ mod model_tests {
     fn test_plan_summary_from_plan_trait_all_completed() {
         let mut plan = create_test_plan();
         // Make all steps completed
-        for step in &mut plan.steps {
-            step.status = StepStatus::Done;
-        }
+        plan.steps
+            .iter_mut()
+            .for_each(|step| step.status = StepStatus::Done);
         let summary = PlanSummary::from(&plan);
 
         // Verify step counts when all steps are completed
@@ -567,14 +567,14 @@ mod model_tests {
     #[test]
     fn test_local_date_time_different_timestamps() {
         // Test with different timestamps to ensure formatting works consistently
-        let timestamps = vec![
+        let timestamps = [
             Timestamp::from_second(1640995200).unwrap(), // 2022-01-01 00:00:00 UTC
             Timestamp::from_second(1672531200).unwrap(), // 2023-01-01 00:00:00 UTC
             Timestamp::from_second(1704067200).unwrap(), // 2024-01-01 00:00:00 UTC
         ];
 
-        for timestamp in timestamps {
-            let local_dt = LocalDateTime(&timestamp);
+        timestamps.iter().for_each(|timestamp| {
+            let local_dt = LocalDateTime(timestamp);
             let local_dt_output = format!("{}", local_dt);
 
             // Each should have the expected format structure
@@ -582,7 +582,7 @@ mod model_tests {
             assert_eq!(parts.len(), 3); // Date, Time, Timezone
             assert!(parts[1].contains(":")); // Time component
             assert!(!local_dt_output.is_empty()); // Output should not be empty
-        }
+        });
     }
 
     #[test]

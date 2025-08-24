@@ -851,25 +851,27 @@ fn test_performance_eager_loading() {
     let (_temp_file, mut db) = create_test_db();
 
     // Create multiple plans with several steps each
-    let mut plan_ids = Vec::new();
-    for i in 1..=10 {
-        let plan = db
-            .create_plan(&format!("Performance Plan {}", i), None, None)
-            .expect("Failed to create plan");
-        plan_ids.push(plan.id);
+    let _plan_ids: Vec<u64> = (1..=10)
+        .map(|i| {
+            let plan = db
+                .create_plan(&format!("Performance Plan {}", i), None, None)
+                .expect("Failed to create plan");
 
-        // Add 5 steps to each plan
-        for j in 1..=5 {
-            db.add_step(
-                plan.id,
-                &format!("Step {} for Plan {}", j, i),
-                None,
-                None,
-                Vec::new(),
-            )
-            .expect("Failed to add step");
-        }
-    }
+            // Add 5 steps to each plan
+            (1..=5).for_each(|j| {
+                db.add_step(
+                    plan.id,
+                    &format!("Step {} for Plan {}", j, i),
+                    None,
+                    None,
+                    Vec::new(),
+                )
+                .expect("Failed to add step");
+            });
+
+            plan.id
+        })
+        .collect();
 
     let start = std::time::Instant::now();
     let plans = db.list_plans(None).expect("Failed to list plans");
@@ -877,9 +879,7 @@ fn test_performance_eager_loading() {
 
     // Verify all plans have their steps loaded
     assert_eq!(plans.len(), 10);
-    for plan in &plans {
-        assert_eq!(plan.steps.len(), 5);
-    }
+    assert!(plans.iter().all(|plan| plan.steps.len() == 5));
 
     // For personal use, this should be very fast even with eager loading
     // Using 100ms as a reasonable threshold for 10 plans with 5 steps each

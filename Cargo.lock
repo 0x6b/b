@@ -149,6 +149,7 @@ dependencies = [
  "beacon-core",
  "clap",
  "env_logger",
+ "futures",
  "jiff",
  "log",
  "pager",
