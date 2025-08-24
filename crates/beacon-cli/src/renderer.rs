@@ -30,7 +30,8 @@ impl TerminalRenderer {
     }
 
     /// Render markdown text to terminal
-    pub fn render(&self, markdown: &str) {
+    pub fn render(&self, markdown: impl std::fmt::Display) {
+        let markdown = markdown.to_string();
         if self.rich_enabled {
             // Process line by line to show hash symbols for headers
             for line in markdown.lines() {

@@ -72,7 +72,7 @@ impl Cli {
         };
 
         self.renderer
-            .render(&format!("# {title}\n\n{plan_summaries}"));
+            .render(format!("# {title}\n\n{plan_summaries}"));
 
         Ok(())
     }
@@ -85,7 +85,7 @@ impl Cli {
             .await
             .context("Failed to create plan")?;
 
-        self.renderer.render(&CreateResult::new(plan).to_string());
+        self.renderer.render(CreateResult::new(plan));
 
         Ok(())
     }
@@ -99,7 +99,7 @@ impl Cli {
             .context("Failed to get plan")?
             .ok_or_else(|| anyhow::anyhow!("Plan with ID {} not found", params.id))?;
 
-        self.renderer.render(&plan.to_string());
+        self.renderer.render(&plan);
 
         Ok(())
     }
@@ -118,7 +118,7 @@ impl Cli {
             plan.title, params.id, params.id
         );
         self.renderer
-            .render(&OperationStatus::success(message).to_string());
+            .render(OperationStatus::success(message));
         Ok(())
     }
 
@@ -132,7 +132,7 @@ impl Cli {
 
         let message = format!("Unarchived plan with ID: {}", params.id);
         self.renderer
-            .render(&OperationStatus::success(message).to_string());
+            .render(OperationStatus::success(message));
         Ok(())
     }
 
@@ -150,7 +150,7 @@ impl Cli {
             plan.title, plan.id
         );
         self.renderer
-            .render(&OperationStatus::success(message).to_string());
+            .render(OperationStatus::success(message));
         Ok(())
     }
 
@@ -168,7 +168,7 @@ impl Cli {
             "ACTIVE"
         }, params.directory);
 
-        self.renderer.render(&format!("# {title}\n\n{plan_summaries}"));
+        self.renderer.render(format!("# {title}\n\n{plan_summaries}"));
         Ok(())
     }
 
@@ -179,7 +179,7 @@ impl Cli {
             .add_step(params)
             .await
             .with_context(|| format!("Failed to add step to plan {}", params.plan_id))?;
-        self.renderer.render(&CreateResult::new(step).to_string());
+        self.renderer.render(CreateResult::new(step));
         Ok(())
     }
 
@@ -196,7 +196,7 @@ impl Cli {
                 )
             })?;
 
-        self.renderer.render(&CreateResult::new(step).to_string());
+        self.renderer.render(CreateResult::new(step));
         Ok(())
     }
 
@@ -250,7 +250,7 @@ impl Cli {
             .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
 
         let result = UpdateResult::with_changes(updated_step, changes);
-        self.renderer.render(&result.to_string());
+        self.renderer.render(&result);
 
         Ok(())
     }
@@ -264,7 +264,7 @@ impl Cli {
             .context("Failed to get step")?
             .ok_or_else(|| anyhow::anyhow!("Step with ID {} not found", params.id))?;
 
-        self.renderer.render(&step.to_string());
+        self.renderer.render(&step);
 
         Ok(())
     }
@@ -286,7 +286,7 @@ impl Cli {
             params.step1_id, params.step2_id
         );
         let status = OperationStatus::success(message);
-        self.renderer.render(&status.to_string());
+        self.renderer.render(&status);
 
         Ok(())
     }
