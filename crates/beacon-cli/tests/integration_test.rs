@@ -5,7 +5,12 @@
 
 use std::process::Command;
 
-use beacon_core::{PlanFilter, PlanStatus, Planner, PlannerBuilder};
+use beacon_core::{
+    PlanFilter, PlanStatus, PlanSummary, Planner, PlannerBuilder, StepStatus,
+    display::{CreateResult, PlanSummaries},
+    params::{CreatePlan, Id, StepCreate},
+};
+use futures::future;
 use tempfile::TempDir;
 
 /// Helper function to create a test planner with temporary database
@@ -27,9 +32,9 @@ fn run_cli_command(db_path: &str, args: &[&str]) -> String {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_b"));
     cmd.arg("--no-color").arg("--database-file").arg(db_path);
 
-    for arg in args {
+    args.iter().for_each(|arg| {
         cmd.arg(arg);
-    }
+    });
 
     let output = cmd.output().expect("Failed to run CLI command");
     String::from_utf8(output.stdout).expect("Invalid UTF-8 in CLI output")
@@ -56,7 +61,7 @@ async fn test_plan_display_consistency() {
     );
 
     // Create plan via direct planner call
-    let params = beacon_core::params::CreatePlan {
+    let params = CreatePlan {
         title: "Integration Test Plan Direct".to_string(),
         description: Some("Test plan for integration testing".to_string()),
         directory: None,
@@ -66,7 +71,7 @@ async fn test_plan_display_consistency() {
         .create_plan(&params)
         .await
         .expect("Failed to create plan");
-    let result = beacon_core::display::CreateResult::new(plan);
+    let result = CreateResult::new(plan);
     let direct_output = result.to_string();
 
     // Both outputs should contain the same structure (ignoring specific IDs and
@@ -103,7 +108,7 @@ async fn test_step_display_consistency() {
     );
 
     // Create plan and step via direct planner call
-    let plan_params = beacon_core::params::CreatePlan {
+    let plan_params = CreatePlan {
         title: "Direct Step Test Plan".to_string(),
         description: None,
         directory: None,
@@ -114,7 +119,7 @@ async fn test_step_display_consistency() {
         .await
         .expect("Failed to create plan");
 
-    let step_params = beacon_core::params::StepCreate {
+    let step_params = StepCreate {
         plan_id: plan.id,
         title: "Test Step".to_string(),
         description: Some("Step added via direct call".to_string()),
@@ -126,7 +131,7 @@ async fn test_step_display_consistency() {
         .add_step(&step_params)
         .await
         .expect("Failed to add step");
-    let result = beacon_core::display::CreateResult::new(step);
+    let result = CreateResult::new(step);
     let direct_output = result.to_string();
 
     // Both outputs should have the same structure
@@ -165,12 +170,12 @@ async fn test_list_plans_consistency() {
     let (planner, _temp_dir2) = create_test_planner().await;
 
     // Create plans directly
-    let plan_params1 = beacon_core::params::CreatePlan {
+    let plan_params1 = CreatePlan {
         title: "Direct List Test Plan 1".to_string(),
         description: None,
         directory: None,
     };
-    let plan_params2 = beacon_core::params::CreatePlan {
+    let plan_params2 = CreatePlan {
         title: "Direct List Test Plan 2".to_string(),
         description: Some("Second plan".to_string()),
         directory: None,
@@ -186,11 +191,11 @@ async fn test_list_plans_consistency() {
         .expect("Failed to create plan");
 
     // Get plan summaries
-    let summary1 = beacon_core::PlanSummary::from_plan(plan1, 0, 0);
-    let summary2 = beacon_core::PlanSummary::from_plan(plan2, 0, 0);
+    let summary1 = PlanSummary::from_plan(plan1, 0, 0);
+    let summary2 = PlanSummary::from_plan(plan2, 0, 0);
 
     let summaries = vec![summary1, summary2];
-    let collection = beacon_core::display::PlanSummaries(summaries);
+    let collection = PlanSummaries(summaries);
     let direct_output = format!("# Active Plans\n\n{}", collection);
 
     // Both should have similar structure
@@ -213,8 +218,8 @@ async fn test_empty_list_consistency() {
     let cli_output = run_cli_command(db_str, &["plan", "list"]);
 
     // Create empty list directly
-    let summaries: Vec<beacon_core::PlanSummary> = vec![];
-    let collection = beacon_core::display::PlanSummaries(summaries);
+    let summaries: Vec<PlanSummary> = vec![];
+    let collection = PlanSummaries(summaries);
     let direct_output = format!("# Active Plans\n\n{}", collection);
 
     // Both should have similar empty structure
@@ -261,7 +266,7 @@ async fn test_show_plan_consistency() {
     // Create plan and step directly
     let (planner, _temp_dir2) = create_test_planner().await;
 
-    let plan_params = beacon_core::params::CreatePlan {
+    let plan_params = CreatePlan {
         title: "Show Test Plan".to_string(),
         description: Some("Plan for show testing".to_string()),
         directory: None,
@@ -272,7 +277,7 @@ async fn test_show_plan_consistency() {
         .await
         .expect("Failed to create plan");
 
-    let step_params = beacon_core::params::StepCreate {
+    let step_params = StepCreate {
         plan_id: plan.id,
         title: "Test Step".to_string(),
         description: Some("Step for testing".to_string()),
@@ -286,7 +291,7 @@ async fn test_show_plan_consistency() {
         .expect("Failed to add step");
 
     // Get plan with steps
-    let params = beacon_core::params::Id { id: plan.id };
+    let params = Id { id: plan.id };
     let mut full_plan = planner
         .get_plan(&params)
         .await
@@ -341,7 +346,7 @@ async fn test_show_step_consistency() {
     // Create step directly
     let (planner, _temp_dir2) = create_test_planner().await;
 
-    let plan_params = beacon_core::params::CreatePlan {
+    let plan_params = CreatePlan {
         title: "Direct Step Show Test Plan".to_string(),
         description: None,
         directory: None,
@@ -352,7 +357,7 @@ async fn test_show_step_consistency() {
         .await
         .expect("Failed to create plan");
 
-    let step_params = beacon_core::params::StepCreate {
+    let step_params = StepCreate {
         plan_id: plan.id,
         title: "Show Step Test".to_string(),
         description: Some("Detailed step description".to_string()),
@@ -389,8 +394,8 @@ async fn test_cli_vs_mcp_list_output() {
     let cli_empty = run_cli_command(db_str, &["plan", "list"]);
 
     // Simulate MCP-style empty list output
-    let empty_plans: Vec<beacon_core::PlanSummary> = vec![];
-    let collection = beacon_core::display::PlanSummaries(empty_plans);
+    let empty_plans: Vec<PlanSummary> = vec![];
+    let collection = PlanSummaries(empty_plans);
     let mcp_empty_str = format!("# Active Plans\n\n{}", collection);
 
     // Both should produce the same output for empty lists
@@ -430,25 +435,27 @@ async fn test_cli_vs_mcp_list_output() {
         .expect("Failed to list plans");
 
     // Convert to summaries as the MCP server would
-    let mut plan_summaries = Vec::new();
-    for plan in plans {
-        let steps = planner
-            .get_steps(&beacon_core::params::Id { id: plan.id })
-            .await
-            .expect("Failed to get steps");
+    let plan_summaries: Vec<PlanSummary> = {
+        async fn process_plan(planner: &Planner, plan: beacon_core::models::Plan) -> PlanSummary {
+            let steps = planner
+                .get_steps(&Id { id: plan.id })
+                .await
+                .expect("Failed to get steps");
 
-        let completed_steps = steps
-            .0
-            .iter()
-            .filter(|s| s.status == beacon_core::StepStatus::Done)
-            .count() as u32;
-        let total_steps = steps.0.len() as u32;
+            let completed_steps = steps
+                .0
+                .iter()
+                .filter(|s| s.status == StepStatus::Done)
+                .count() as u32;
+            let total_steps = steps.0.len() as u32;
 
-        let summary = beacon_core::PlanSummary::from_plan(plan, total_steps, completed_steps);
-        plan_summaries.push(summary);
-    }
+            PlanSummary::from_plan(plan, total_steps, completed_steps)
+        }
 
-    let collection = beacon_core::display::PlanSummaries(plan_summaries);
+        future::join_all(plans.into_iter().map(|plan| process_plan(&planner, plan))).await
+    };
+
+    let collection = PlanSummaries(plan_summaries);
     let mcp_list_str = format!("# Active Plans\n\n{}", collection);
 
     // Both outputs should have the same structure
@@ -530,7 +537,7 @@ async fn test_cli_vs_mcp_show_plan_output() {
         .await
         .expect("Failed to create planner");
 
-    let params = beacon_core::params::Id { id: 1 };
+    let params = Id { id: 1 };
     let mut plan = planner
         .get_plan(&params)
         .await
@@ -585,7 +592,7 @@ async fn test_cli_vs_mcp_show_step_output() {
         .await
         .expect("Failed to create planner");
 
-    let params = beacon_core::params::Id { id: 1 };
+    let params = Id { id: 1 };
     let step = planner
         .get_step(&params)
         .await
