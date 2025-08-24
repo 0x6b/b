@@ -206,11 +206,12 @@ impl Cli {
 
         // Validate result requirement for done status
         if let StepStatus::Done = status
-            && params.result.is_none() {
-                return Err(anyhow::anyhow!(
-                    "Result description is required when marking a step as done. Use --result to describe what was accomplished."
-                ));
-            }
+            && params.result.is_none()
+        {
+            return Err(anyhow::anyhow!(
+                "Result description is required when marking a step as done. Use --result to describe what was accomplished."
+            ));
+        }
 
         // Build list of changes made for display
         let mut changes = Vec::new();

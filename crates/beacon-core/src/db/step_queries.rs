@@ -264,12 +264,13 @@ impl super::Database {
     pub fn update_step(&mut self, step_id: u64, request: UpdateStepRequest) -> Result<()> {
         // Validate result requirement when changing status to Done
         if let Some(StepStatus::Done) = request.status
-            && request.result.is_none() {
-                return Err(PlannerError::InvalidInput {
-                    field: "result".into(),
-                    reason: "Result description is required when marking a step as done".into(),
-                });
-            }
+            && request.result.is_none()
+        {
+            return Err(PlannerError::InvalidInput {
+                field: "result".into(),
+                reason: "Result description is required when marking a step as done".into(),
+            });
+        }
 
         // Check if there's anything to update
         if request.title.is_none()

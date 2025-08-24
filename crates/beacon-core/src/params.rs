@@ -276,12 +276,13 @@ impl UpdateStep {
 
         // Validate result requirement for done status
         if let Some(StepStatus::Done) = step_status
-            && self.result.is_none() {
-                return Err(crate::PlannerError::InvalidInput {
+            && self.result.is_none()
+        {
+            return Err(crate::PlannerError::InvalidInput {
                     field: "result".to_string(),
                     reason: "Result description is required when marking a step as done. Please provide a 'result' field describing what was accomplished.".to_string(),
                 });
-            }
+        }
 
         Ok((step_status, self.result.clone()))
     }
