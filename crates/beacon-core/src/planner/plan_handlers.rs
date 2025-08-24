@@ -4,7 +4,7 @@ use super::Planner;
 use crate::{
     error::Result,
     models::{Plan, PlanFilter, PlanSummary},
-    params::{Id, ListPlans, SearchPlans},
+    params::{DeletePlan, Id, ListPlans, SearchPlans},
 };
 
 impl Planner {
@@ -103,77 +103,7 @@ impl Planner {
         self.create_plan(params).await
     }
 
-    /// Handle archiving a plan with confirmation.
-    ///
-    /// Archives the specified plan, making it inactive but preserving
-    /// all data for potential restoration. Uses get-before-delete pattern
-    /// to return the plan details for confirmation.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - ID parameters specifying which plan to archive
-    ///
-    /// # Returns
-    ///
-    /// An optional Plan object if the plan was found and archived,
-    /// or None if the plan doesn't exist
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use beacon_core::{params::Id, PlannerBuilder};
-    /// # async {
-    /// let planner = PlannerBuilder::new().build().await?;
-    /// let params = Id { id: 1 };
-    /// let archived_plan = planner.archive_plan_with_confirmation(&params).await?;
-    /// # Result::<(), beacon_core::PlannerError>::Ok(())
-    /// # };
-    /// ```
-    pub async fn archive_plan_with_confirmation(&self, params: &Id) -> Result<Option<Plan>> {
-        let plan = self.get_plan(params).await?;
 
-        if let Some(ref _plan) = plan {
-            self.archive_plan(params).await?;
-        }
-
-        Ok(plan)
-    }
-
-    /// Handle unarchiving a plan with confirmation.
-    ///
-    /// Restores an archived plan to active status, making it visible
-    /// in regular plan listings. Uses get-before-delete pattern
-    /// to return the plan details for confirmation.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - ID parameters specifying which plan to unarchive
-    ///
-    /// # Returns
-    ///
-    /// An optional Plan object if the plan was found and unarchived,
-    /// or None if the plan doesn't exist
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use beacon_core::{params::Id, PlannerBuilder};
-    /// # async {
-    /// let planner = PlannerBuilder::new().build().await?;
-    /// let params = Id { id: 1 };
-    /// let unarchived_plan = planner.unarchive_plan_with_confirmation(&params).await?;
-    /// # Result::<(), beacon_core::PlannerError>::Ok(())
-    /// # };
-    /// ```
-    pub async fn unarchive_plan_with_confirmation(&self, params: &Id) -> Result<Option<Plan>> {
-        let plan = self.get_plan(params).await?;
-
-        if let Some(ref _plan) = plan {
-            self.unarchive_plan(params).await?;
-        }
-
-        Ok(plan)
-    }
 
     /// Handle permanently deleting a plan with confirmation.
     ///
@@ -181,31 +111,49 @@ impl Planner {
     /// database. This operation cannot be undone. Uses get-before-delete
     /// pattern to return the plan details for confirmation.
     ///
+    /// Requires explicit confirmation via the `confirmed` field to prevent
+    /// accidental deletion. Returns an error if confirmation is not provided.
+    ///
     /// # Arguments
     ///
-    /// * `params` - ID parameters specifying which plan to delete
+    /// * `params` - DeletePlan parameters containing plan ID and confirmation flag
     ///
     /// # Returns
     ///
     /// Returns the plan details that were deleted for confirmation,
     /// or None if the plan doesn't exist
     ///
+    /// # Errors
+    ///
+    /// Returns `PlannerError::InvalidInput` if `confirmed` field is false
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use beacon_core::{params::Id, PlannerBuilder};
+    /// # use beacon_core::{params::DeletePlan, PlannerBuilder};
     /// # async {
     /// let planner = PlannerBuilder::new().build().await?;
-    /// let params = Id { id: 1 };
-    /// let deleted_plan = planner.delete_plan_with_confirmation(&params).await?;
+    /// let params = DeletePlan { id: 1, confirmed: true };
+    /// let deleted_plan = planner.delete_plan(&params).await?;
     /// # Result::<(), beacon_core::PlannerError>::Ok(())
     /// # };
     /// ```
-    pub async fn delete_plan_with_confirmation(&self, params: &Id) -> Result<Option<Plan>> {
-        let plan = self.get_plan(params).await?;
+    pub async fn delete_plan(&self, params: &DeletePlan) -> Result<Option<Plan>> {
+        // Check confirmation flag first
+        if !params.confirmed {
+            return Err(crate::PlannerError::InvalidInput {
+                field: "confirmed".to_string(),
+                reason: "Plan deletion requires explicit confirmation. Set 'confirmed' to true to proceed with permanent deletion.".to_string(),
+            });
+        }
+
+        // Convert to Id params for internal operations
+        let id_params = Id { id: params.id };
+        let plan = self.get_plan(&id_params).await?;
 
         if let Some(ref _plan) = plan {
-            self.delete_plan(params).await?;
+            // Call the underlying delete_plan_by_id method from plan_ops
+            self.delete_plan_by_id(&id_params).await?;
         }
 
         Ok(plan)

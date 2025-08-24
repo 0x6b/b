@@ -80,9 +80,9 @@ impl Planner {
     }
 
     /// Atomically claims a step for processing by transitioning it from Todo to
-    /// InProgress. Returns Ok(true) if the step was successfully claimed,
-    /// Ok(false) if the step was not in Todo status.
-    pub async fn claim_step(&self, params: &Id) -> Result<bool> {
+    /// InProgress. Returns the step details if successfully claimed, None if
+    /// the step doesn't exist or cannot be claimed.
+    pub async fn claim_step(&self, params: &Id) -> Result<Option<Step>> {
         let db_path = self.db_path.clone();
         let step_id = params.id;
 

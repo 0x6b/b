@@ -86,7 +86,8 @@ impl Planner {
     }
 
     /// Archives a plan (soft delete).
-    pub async fn archive_plan(&self, params: &Id) -> Result<()> {
+    /// Returns the archived plan details if successful, None if the plan doesn't exist.
+    pub async fn archive_plan(&self, params: &Id) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
@@ -101,7 +102,8 @@ impl Planner {
     }
 
     /// Unarchives a plan (restores from archive).
-    pub async fn unarchive_plan(&self, params: &Id) -> Result<()> {
+    /// Returns the unarchived plan details if successful, None if the plan doesn't exist.
+    pub async fn unarchive_plan(&self, params: &Id) -> Result<Option<Plan>> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 
@@ -117,7 +119,7 @@ impl Planner {
 
     /// Permanently deletes a plan and all its associated steps.
     /// This operation cannot be undone.
-    pub async fn delete_plan(&self, params: &Id) -> Result<()> {
+    pub async fn delete_plan_by_id(&self, params: &Id) -> Result<()> {
         let db_path = self.db_path.clone();
         let plan_id = params.id;
 

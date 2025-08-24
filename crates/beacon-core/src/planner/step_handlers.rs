@@ -164,7 +164,7 @@ impl Planner {
     ///
     /// # Returns
     ///
-    /// A boolean indicating whether the step was successfully claimed
+    /// The step details if successfully claimed, None if the step doesn't exist or cannot be claimed
     ///
     /// # Examples
     ///
@@ -173,11 +173,11 @@ impl Planner {
     /// # async {
     /// let planner = PlannerBuilder::new().build().await?;
     /// let params = Id { id: 1 };
-    /// let claimed = planner.claim_step_atomically(&params).await?;
+    /// let claimed_step = planner.claim_step_atomically(&params).await?;
     /// # Result::<(), beacon_core::PlannerError>::Ok(())
     /// # };
     /// ```
-    pub async fn claim_step_atomically(&self, params: &Id) -> Result<bool> {
+    pub async fn claim_step_atomically(&self, params: &Id) -> Result<Option<Step>> {
         self.claim_step(params).await
     }
 
