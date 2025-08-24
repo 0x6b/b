@@ -170,24 +170,5 @@ impl<T> ConfigResultExt<T> for std::result::Result<T, rusqlite::Error> {
     }
 }
 
-/// Legacy extension trait for backwards compatibility with existing code.
-pub trait ResultExtLegacy<T> {
-    /// Map database errors with a message (legacy)
-    fn db_err(self, message: &str) -> Result<T>;
-
-    /// Map configuration errors with a message (legacy)  
-    fn config_err(self, message: &str) -> Result<T>;
-}
-
-impl<T> ResultExtLegacy<T> for std::result::Result<T, rusqlite::Error> {
-    fn db_err(self, message: &str) -> Result<T> {
-        self.db_context(message)
-    }
-
-    fn config_err(self, message: &str) -> Result<T> {
-        self.config_context(message)
-    }
-}
-
 /// Result type alias for planner operations
 pub type Result<T> = std::result::Result<T, PlannerError>;
