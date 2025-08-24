@@ -30,6 +30,39 @@ $ beacon plan show <ID>
 
 See `beacon help` for more commands.
 
+## Architecture
+
+Beacon is organized into focused modules that work together:
+
+### Display Architecture
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Domain Models  │    │ Format Functions│    │   Formatted     │
+│  (Plan, Step)   │───▶│ & Result Types  │───▶│    Output       │
+│                 │    │                 │    │  (Terminal/MCP) │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Database Layer
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Migrations    │    │     Queries     │    │    Database     │
+│   (schema)      │───▶│ (plan_queries,  │───▶│  (Connection)   │
+│                 │    │  step_queries)  │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+    Schema Updates        Typed Queries         SQLite Storage
+```
+
+### Planner Coordination
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│    Handlers     │    │   Operations    │    │    Database     │
+│ (plan_handlers, │───▶│ (plan_ops,      │───▶│   (via db/)     │
+│  step_handlers) │    │  step_ops)      │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+    User Interface      Business Logic         Data Persistence
+```
+
 ## Configuration
 
 ### Database
