@@ -361,16 +361,9 @@ impl McpHandlers {
 
     #[tool(
         name = "update_step",
-        description = "Modify an existing step's properties. Use step ID to identify. 
-        Can update: status ('todo', 'inprogress', or 'done'), title, description, 
-        acceptance_criteria, and references. 
+        description = "Modify an existing step's properties. Use step ID to identify. Can update: status ('todo', 'inprogress', or 'done'), title, description,        acceptance_criteria, and references.
         
-        IMPORTANT: When changing status to 'done', you MUST provide a 'result' field 
-        describing what was actually accomplished. The result will be permanently recorded 
-        and shown when viewing completed steps. The result field is ignored for all other 
-        status values.
-        
-        Example for marking as done:
+        IMPORTANT: When changing status to 'done', you MUST provide a 'result' field describing what was actually accomplished, technically in detail. The result will be permanently recorded and shown when viewing completed steps. The result field is ignored for all other status values. Example for marking as done:
         {
           \"id\": 5,
           \"status\": \"done\",
