@@ -4,11 +4,11 @@
 //! providing a standardized interface for AI models to interact with
 //! the task planning system.
 
-use std::{fmt::Write, future::Future, sync::Arc};
+use std::{future::Future, sync::Arc};
 
 use anyhow::Result;
 use beacon_core::{
-    display::{format_plan_list, CreateResult, OperationStatus},
+    display::{CreateResult, OperationStatus},
     params as core, Planner,
 };
 use rmcp::{
@@ -435,23 +435,20 @@ impl BeaconMcpServer {
             .await
             .map_err(|e| to_mcp_error("Failed to list plans", e))?;
 
-        if plan_summaries.is_empty() {
-            let title = if inner_params.archived {
+        let title = if plan_summaries.is_empty() {
+            if inner_params.archived {
                 "No archived plans found"
             } else {
                 "No active plans found"
-            };
-            let result = format_plan_list(&plan_summaries, Some(title));
-            Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+        } else if inner_params.archived {
+            "Archived Plans"
         } else {
-            let title = if inner_params.archived {
-                "Archived Plans"
-            } else {
-                "Active Plans"
-            };
-            let result = format_plan_list(&plan_summaries, Some(title));
-            Ok(CallToolResult::success(vec![Content::text(result)]))
-        }
+            "Active Plans"
+        };
+        
+        let result = format!("# {}\n\n{}", title, plan_summaries);
+        Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 
     #[tool(
@@ -586,36 +583,13 @@ impl BeaconMcpServer {
                 status_text, inner_params.directory
             )
         } else {
-            let mut result = String::new();
             let status_text = if inner_params.archived {
                 "archived"
             } else {
                 "active"
             };
-            writeln!(
-                result,
-                "# {} plans in directory: {}\n",
-                status_text.to_uppercase(),
-                inner_params.directory
-            )
-            .unwrap();
-            for summary in plan_summaries {
-                writeln!(result, "- **{}** (ID: {})", summary.title, summary.id).unwrap();
-                if let Some(desc) = &summary.description {
-                    writeln!(result, "  Description: {desc}").unwrap();
-                }
-                if let Some(dir) = &summary.directory {
-                    writeln!(result, "  Directory: {dir}").unwrap();
-                }
-                writeln!(result, "  Status: {}", summary.status.as_str()).unwrap();
-                writeln!(
-                    result,
-                    "  Steps: {}/{}",
-                    summary.completed_steps, summary.total_steps
-                )
-                .unwrap();
-            }
-            result
+            let title = format!("{} plans in directory: {}", status_text.to_uppercase(), inner_params.directory);
+            format!("# {}\n\n{}", title, plan_summaries)
         };
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
