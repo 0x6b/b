@@ -123,6 +123,19 @@ pub struct SearchPlans {
     pub archived: bool,
 }
 
+/// Parameters for deleting a plan.
+///
+/// Requires explicit confirmation to prevent accidental deletion of plans
+/// and their associated steps. Deletion is permanent and cannot be undone.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct DeletePlan {
+    /// The ID of the plan to delete
+    pub id: u64,
+    /// Confirmation flag required to prevent accidental deletion
+    pub confirmed: bool,
+}
+
 /// Base parameters for step creation and modification.
 ///
 /// Contains the common fields used when creating or modifying steps.
