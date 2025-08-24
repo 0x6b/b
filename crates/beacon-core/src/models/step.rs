@@ -24,14 +24,13 @@ pub struct Step {
     pub acceptance_criteria: Option<String>,
 
     /// References to relevant resources (URLs, file paths)
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub references: Vec<String>,
 
     /// Current status of the step
     pub status: StepStatus,
 
     /// Description of what was accomplished (required when status = Done)
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<String>,
 
     /// Order of the step within the plan (0-indexed)

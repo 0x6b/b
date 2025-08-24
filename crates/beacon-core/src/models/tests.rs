@@ -605,4 +605,130 @@ mod model_tests {
         assert_eq!(output1, output2);
         assert!(!output1.is_empty());
     }
+
+    #[test]
+    fn test_plan_filter_builder_pattern() {
+        // Test new builder pattern functionality
+        let filter = PlanFilter::new()
+            .directory("/test/path".to_string())
+            .archived(false);
+
+        assert_eq!(filter.directory, Some("/test/path".to_string()));
+        assert_eq!(filter.status, Some(PlanStatus::Active));
+        assert!(!filter.include_archived);
+
+        // Test archived builder
+        let archived_filter = PlanFilter::new()
+            .directory("/archived/path".to_string())  
+            .archived(true);
+
+        assert_eq!(archived_filter.directory, Some("/archived/path".to_string()));
+        assert_eq!(archived_filter.status, Some(PlanStatus::Archived));
+        assert!(archived_filter.include_archived);
+    }
+
+    #[test]
+    fn test_plan_filter_const_default() {
+        // Test that const constructor creates proper defaults
+        let filter = PlanFilter::new();
+        
+        assert_eq!(filter.title_contains, None);
+        assert_eq!(filter.directory, None);
+        assert_eq!(filter.created_after, None);
+        assert_eq!(filter.created_before, None);
+        assert_eq!(filter.completion_status, None);
+        assert_eq!(filter.status, None);
+        assert!(!filter.include_archived);
+    }
+
+    #[test]
+    fn test_serialization_empty_vectors() {
+        // Test current serialization behavior for empty vectors
+        let step_empty_refs = Step {
+            id: 1,
+            plan_id: 1,
+            title: "Test".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: vec![],
+            status: StepStatus::Todo,
+            result: None,
+            order: 0,
+            created_at: Timestamp::from_second(1640995200).unwrap(),
+            updated_at: Timestamp::from_second(1640995200).unwrap(),
+        };
+
+        let plan_empty_steps = Plan {
+            id: 1,
+            title: "Test".to_string(),
+            description: None,
+            status: PlanStatus::Active,
+            directory: None,
+            created_at: Timestamp::from_second(1640995200).unwrap(),
+            updated_at: Timestamp::from_second(1640995200).unwrap(),
+            steps: vec![],
+        };
+
+        let step_json = serde_json::to_string(&step_empty_refs).unwrap();
+        let plan_json = serde_json::to_string(&plan_empty_steps).unwrap();
+
+        // Empty references should appear in JSON as default (empty array)
+        assert!(step_json.contains("\"references\":[]"));
+        
+        // Empty steps should appear in JSON as default (empty array)
+        assert!(plan_json.contains("\"steps\":[]"));
+
+        // Test with non-empty vectors
+        let step_with_refs = Step {
+            id: 1,
+            plan_id: 1,
+            title: "Test".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: vec!["ref1.txt".to_string()],
+            status: StepStatus::Todo,
+            result: None,
+            order: 0,
+            created_at: Timestamp::from_second(1640995200).unwrap(),
+            updated_at: Timestamp::from_second(1640995200).unwrap(),
+        };
+
+        let plan_with_steps = Plan {
+            id: 1,
+            title: "Test".to_string(),
+            description: None,
+            status: PlanStatus::Active,
+            directory: None,
+            created_at: Timestamp::from_second(1640995200).unwrap(),
+            updated_at: Timestamp::from_second(1640995200).unwrap(),
+            steps: vec![step_with_refs.clone()],
+        };
+
+        let step_with_refs_json = serde_json::to_string(&step_with_refs).unwrap();
+        let plan_with_steps_json = serde_json::to_string(&plan_with_steps).unwrap();
+
+        // Non-empty vectors should appear in JSON
+        assert!(step_with_refs_json.contains("references"));
+        assert!(plan_with_steps_json.contains("steps"));
+
+        // Test result field behavior
+        assert!(step_json.contains("\"result\":null"));
+        
+        // Test with non-null result
+        let step_with_result = Step {
+            id: 1,
+            plan_id: 1,
+            title: "Test".to_string(),
+            description: None,
+            acceptance_criteria: None,
+            references: vec![],
+            status: StepStatus::Todo,
+            result: Some("Completed successfully".to_string()),
+            order: 0,
+            created_at: Timestamp::from_second(1640995200).unwrap(),
+            updated_at: Timestamp::from_second(1640995200).unwrap(),
+        };
+        let step_with_result_json = serde_json::to_string(&step_with_result).unwrap();
+        assert!(step_with_result_json.contains("\"result\":\"Completed successfully\""));
+    }
 }

@@ -31,6 +31,6 @@ pub struct Plan {
     pub updated_at: Timestamp,
 
     /// Associated steps (lazy-loaded by default)
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[serde(default)]
     pub steps: Vec<Step>,
 }
